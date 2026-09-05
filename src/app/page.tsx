@@ -1,69 +1,207 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Header } from "@/components/Header";
+import { Button } from "@/components/Button";
+import { useStrategyStore } from "@/lib/store";
+
+const EXAMPLES = [
+  "London killzone, sweep PDH, enter on 50% retrace, trail stop 30 pips",
+  "Wait for a bullish order block in New York, enter on engulfing candle",
+  "9/21 EMA cross when ATR is above average, trail stop 20 pips",
+];
+
+const HOW_IT_WORKS_KEY = "stratobot.howItWorksDismissed.v1";
+
+const STEPS = [
+  { icon: "edit_note", label: "Describe" },
+  { icon: "science", label: "Check it" },
+  { icon: "lock_open", label: "Unlock" },
+  { icon: "download", label: "Download" },
+] as const;
+
+function HowItWorks({ onDismiss }: { onDismiss: () => void }) {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="relative rounded-lg border border-outline bg-slate px-4 py-3.5 mb-5">
+      <button
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="material-symbols-outlined absolute top-2 right-2 text-base text-chalk/40 p-1 rounded-md hover:bg-slate-high hover:text-chalk/70"
+      >
+        close
+      </button>
+      <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3 pr-6">
+        How it works
+      </p>
+      <div className="flex items-center justify-between mb-3">
+        {STEPS.map((step, i) => (
+          <div key={step.label} className="flex items-center flex-1">
+            <div className="flex flex-col items-center gap-1 flex-1">
+              <span className="material-symbols-outlined text-signal text-xl">{step.icon}</span>
+              <span className="text-xs font-medium text-chalk text-center">{step.label}</span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <span className="material-symbols-outlined text-outline text-base shrink-0 -mt-4">
+                arrow_forward
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-chalk/60 leading-relaxed">
+        Type your strategy in plain language, run a free logic check to see if your rules fire,
+        then unlock once you&apos;re happy to download a bot for MetaTrader 5.
+      </p>
+    </div>
+  );
+}
+
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+export default function DescribePage() {
+  const router = useRouter();
+  const { startFromPrompt, parsing } = useStrategyStore();
+  const [text, setText] = useState("");
+  const [listening, setListening] = useState(false);
+  const [canListen, setCanListen] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+
+  // Feature-detected client-side only, to avoid a server/client markup mismatch.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCanListen("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+    try {
+      setShowHowItWorks(!window.localStorage.getItem(HOW_IT_WORKS_KEY));
+    } catch {
+      setShowHowItWorks(true);
+    }
+  }, []);
+
+  function dismissHowItWorks() {
+    setShowHowItWorks(false);
+    try {
+      window.localStorage.setItem(HOW_IT_WORKS_KEY, "1");
+    } catch {
+      // localStorage unavailable — dismissal just won't persist across visits
+    }
+  }
+
+  function toggleListen() {
+    if (!canListen) return;
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const w = window as unknown as Record<string, unknown>;
+    const Ctor = (w.SpeechRecognition || w.webkitSpeechRecognition) as
+      | (new () => SpeechRecognitionLike)
+      | undefined;
+    if (!Ctor) return;
+    const rec = new Ctor();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      setText((t) => (t ? `${t} ${transcript}` : transcript));
+    };
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    rec.start();
+    setListening(true);
+  }
+
+  async function submit(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || parsing) return;
+    await startFromPrompt(trimmed);
+    router.push("/readback");
+  }
+
+  return (
+    <div className="flex flex-col flex-1">
+      <Header />
+      <main className="flex-1 flex flex-col px-4 pt-6 pb-32 overflow-y-auto">
+        {showHowItWorks && <HowItWorks onDismiss={dismissHowItWorks} />}
+
+        <h1 className="font-display font-bold text-2xl text-chalk mb-4">
+          What&apos;s your strategy?
+        </h1>
+
+        <div className="relative">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={5}
+            placeholder="Type it the way you'd explain it to another trader."
+            className="w-full resize-none rounded-lg border border-outline bg-slate text-chalk placeholder:text-chalk/40 px-4 py-3.5 pr-14 text-[15px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary"
+          />
+          {canListen && (
+            <button
+              onClick={toggleListen}
+              aria-label="Voice input"
+              className={`material-symbols-outlined absolute bottom-3 right-3 rounded-full p-2 ${
+                listening ? "bg-signal text-white" : "bg-slate-high text-chalk/70"
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              mic
+            </button>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {!text && (
+          <div className="mt-4 flex flex-col gap-2">
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex}
+                onClick={() => setText(ex)}
+                className="text-left text-sm text-chalk/70 border border-outline rounded-md px-3 py-2 hover:bg-slate hover:text-chalk transition-colors"
+              >
+                &ldquo;{ex}&rdquo;
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 my-6">
+          <div className="h-px bg-outline flex-1" />
+          <span className="text-xs font-mono text-chalk/40 uppercase tracking-wider">or</span>
+          <div className="h-px bg-outline flex-1" />
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Link href="/adjust?new=1">
+            <Button variant="ghost" className="w-full">
+              Build with blocks
+            </Button>
+          </Link>
+          <Link href="/library">
+            <Button variant="ghost" className="w-full">
+              Browse video strategies
+            </Button>
+          </Link>
         </div>
       </main>
+
+      <div className="sticky bottom-0 px-4 py-4 border-t border-outline bg-ink safe-bottom">
+        <Button
+          className="w-full"
+          disabled={!text.trim() || parsing}
+          onClick={() => submit(text)}
+        >
+          {parsing ? "Reading your strategy…" : "Read my strategy"}
+        </Button>
+      </div>
     </div>
   );
 }

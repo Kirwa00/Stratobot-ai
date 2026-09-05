@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Strategy parsing
+
+Free-text strategy descriptions are parsed by `POST /api/parse`
+(`src/app/api/parse/route.ts`), which calls Claude with the block library
+(`src/lib/blocks.ts`) as a tool schema. Set `ANTHROPIC_API_KEY` in
+`.env.local` to enable it. Without a key, or if the call fails, the client
+(`src/lib/store.tsx`) transparently falls back to the local keyword matcher
+in `src/lib/parser.ts` — the whole Describe → Readback → Adjust → Simulate →
+Download flow works either way.
+
 ## Getting Started
 
 First, run the development server:

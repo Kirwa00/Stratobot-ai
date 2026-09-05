@@ -1,26 +1,208 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* StratoBot AI palette — Updated to match Stitch stratobot_logic design system */
+  --ink: #0d131f;
+  --slate: #1a202c;
+  --slate-high: #242a37;
+  --chalk: #EEF1F6;
+  --signal: #3D5AFE;
+  --signal-dim: #2947e0;
+  --caution: #F0A020;
+  --caution-bg: #3a2c10;
+  --buy: #0E9F6E;
+  --sell: #E02424;
+  --outline: #444656;
+  --outline-variant: #3b4b37;
+  /* Focus rings / hover accents (BlockPickerSheet, ParameterSheet, inputs) —
+     aliased to signal so interactive states match the primary action color
+     instead of introducing an unreviewed extra hue. */
+  --secondary: var(--signal);
+
+  --background: var(--ink);
+  --foreground: var(--chalk);
+  --surface: var(--slate);
+  --surface-high: var(--slate-high);
+}
+
+[data-theme="light"] {
+  --background: #f5f6fa;
+  --foreground: #0d131f;
+  --surface: #ffffff;
+  --surface-high: #eef1f6;
+  --outline: #dbe0ea;
+  --chalk: #0d131f;
 }
 
 @theme inline {
+  --color-ink: var(--ink);
+  --color-slate: var(--surface);
+  --color-slate-high: var(--surface-high);
+  --color-chalk: var(--foreground);
+  --color-signal: var(--signal);
+  --color-signal-dim: var(--signal-dim);
+  --color-caution: var(--caution);
+  --color-caution-bg: var(--caution-bg);
+  --color-buy: var(--buy);
+  --color-sell: var(--sell);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-secondary: var(--secondary);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-display: var(--font-archivo);
+  --font-body: var(--font-inter);
+  --font-data: var(--font-plex-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  color-scheme: dark;
+}
+[data-theme="light"] html,
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--outline); border-radius: 4px; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.mono-num {
+  font-family: var(--font-data), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* UX Plan Animations - §7 Motion */
+
+/* Strategy strip block stagger animation */
+@keyframes block-stagger-in {
+  from { 
+    opacity: 0; 
+    transform: translateX(-12px) scale(0.95);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-block-stagger {
+  animation: block-stagger-in 200ms ease-out both;
+}
+
+/* Chart arrow drawing animation */
+@keyframes arrow-draw {
+  from { 
+    opacity: 0; 
+    transform: scale(0);
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+}
+
+.animate-arrow-draw {
+  animation: arrow-draw 300ms ease-out both;
+}
+
+/* Bottom sheet slide animation */
+@keyframes sheet-slide-up {
+  from { 
+    transform: translateY(100%);
+  }
+  to { 
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-slide-up 200ms ease-out both;
+}
+
+/* General stagger animation for lists */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-stagger-in {
+  animation: stagger-in 260ms ease-out both;
+}
+
+/* Draw animation for simulation results */
+@keyframes draw-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-draw-in {
+  animation: draw-in 220ms ease-out both;
+}
+
+/* Amber confidence indicator pulse */
+@keyframes confidence-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-confidence-pulse {
+  animation: confidence-pulse 2s ease-in-out infinite;
+}
+
+/* Button press effect */
+.button-press:active {
+  transform: scale(0.97);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Success checkmark animation */
+@keyframes checkmark {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-checkmark {
+  stroke-dasharray: 24;
+  animation: checkmark 0.4s ease-out forwards;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
