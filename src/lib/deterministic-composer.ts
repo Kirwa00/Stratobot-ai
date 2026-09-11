@@ -124,7 +124,6 @@ export function composeMQL5FromStrategy(
     entryBlocks,
     exitBlocks,
     allTemplates,
-    allDependencies,
     includeComments
   );
 
@@ -141,7 +140,6 @@ function buildMQL5Code(
   entryBlocks: BlockInstance[],
   exitBlocks: BlockInstance[],
   templates: MQL5Template[],
-  dependencies: Set<string>,
   includeComments: boolean
 ): string {
   const lines: string[] = [];
@@ -167,11 +165,17 @@ function buildMQL5Code(
   lines.push("#property strict");
   lines.push("");
 
-  // Include dependencies
-  if (dependencies.has("CTrade")) {
-    lines.push("#include <Trade\\Trade.mqh>");
-    lines.push("");
-  }
+  // CTrade is always required, not just when a block opts in: OpenPosition()
+  // below (part of the fixed scaffold, present regardless of which blocks
+  // were chosen) unconditionally calls trade.Buy()/trade.Sell(), and OnInit()
+  // unconditionally configures `trade`. Gating the #include behind
+  // `dependencies.has("CTrade")` — only 4 of 28 blocks (the exit blocks that
+  // call PositionModify) ever added that dependency — meant any strategy
+  // without one of those four (i.e. most strategies) got `CTrade trade;`
+  // with no matching #include: "unexpected token" on that line, cascading
+  // into "undeclared identifier 'trade'" everywhere trade.* is called.
+  lines.push("#include <Trade\\Trade.mqh>");
+  lines.push("");
 
   // Global variables
   lines.push("// Global variables");
