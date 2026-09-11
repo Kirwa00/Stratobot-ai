@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
@@ -11,6 +11,7 @@ export default function UnlockPage() {
   const router = useRouter();
   const { hydrated, strategy, paid, markPaid } = useStrategyStore();
   const [processing, setProcessing] = useState(false);
+  const pendingPayment = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (hydrated && !strategy) router.replace("/");
@@ -20,13 +21,22 @@ export default function UnlockPage() {
     if (paid) router.replace("/building");
   }, [paid, router]);
 
+  // Cancel the in-flight mock confirmation if the trader navigates away
+  // before it resolves — a real webhook/polling confirmation should never
+  // mark a payment complete after the user has already left the flow.
+  useEffect(() => {
+    return () => {
+      if (pendingPayment.current) clearTimeout(pendingPayment.current);
+    };
+  }, []);
+
   if (!strategy) return null;
 
   function pay(method: string) {
     setProcessing(true);
     // No real payment processor is wired up in this build — see README.
     // This simulates the webhook-confirmed flow described in the UX plan.
-    window.setTimeout(() => {
+    pendingPayment.current = setTimeout(() => {
       markPaid();
     }, 1400);
     void method;
@@ -69,6 +79,13 @@ export default function UnlockPage() {
               </li>
             ))}
           </ul>
+          <div className="flex items-start gap-2 mt-3 pt-3 border-t border-outline">
+            <span className="material-symbols-outlined text-caution text-base shrink-0">info</span>
+            <p className="text-xs text-chalk/70 leading-relaxed">
+              You&apos;ll need MetaTrader 5 on a Windows desktop or VPS to compile and run this file
+              — mobile MT5 can&apos;t do it. No desktop yet? A cheap trading VPS works too.
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">

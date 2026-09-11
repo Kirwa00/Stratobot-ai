@@ -37,8 +37,9 @@ export default function DownloadPage() {
           <span className="material-symbols-outlined text-signal text-4xl">check_circle</span>
           <h1 className="font-display font-bold text-xl text-chalk">Your bot is downloaded</h1>
           <p className="text-sm text-chalk/70 leading-relaxed">
-            This link expires in 24 hours and we delete the file after that. Save your own copy
-            now.
+            It&apos;s a normal .mq5 file, saved straight to your device — yours to keep, and yours
+            to forward to a teammate or subscriber if you want (they&apos;ll need MetaTrader 5
+            too). Lost it? Just describe the same strategy again — rebuilding is unlimited on Pro.
           </p>
           <Button className="mt-4 w-full" onClick={() => router.push("/install")}>
             How do I install this?
