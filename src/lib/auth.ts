@@ -9,6 +9,7 @@ export interface User {
   subscriptionTier: "free" | "pro";
   strategiesCreated: number;
   simsUsed: number;
+  isAdmin?: boolean;
 }
 
 export interface AuthState {
@@ -19,7 +20,11 @@ export interface AuthState {
 
 const STORAGE_KEY = "stratobot_auth_v1";
 
-// Mock user database - in production this would be a real backend
+// Mock user database - in production this would be a real backend. This is
+// an in-memory object: it resets on every full page reload (it is NOT
+// persisted to localStorage or any server), so newly registered accounts
+// only survive for the current tab session. Only getAuthState()'s snapshot
+// of the CURRENTLY signed-in user survives a reload.
 const MOCK_USERS: Record<string, { user: User; password: string }> = {
   "demo@stratobot.ai": {
     user: {
@@ -32,6 +37,19 @@ const MOCK_USERS: Record<string, { user: User; password: string }> = {
       simsUsed: 12
     },
     password: "demo123"
+  },
+  "admin@stratobot.ai": {
+    user: {
+      id: "user-admin",
+      email: "admin@stratobot.ai",
+      name: "Admin",
+      createdAt: Date.now() - 86400000 * 60,
+      subscriptionTier: "pro",
+      strategiesCreated: 0,
+      simsUsed: 0,
+      isAdmin: true
+    },
+    password: "admin123"
   }
 };
 

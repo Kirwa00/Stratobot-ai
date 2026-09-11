@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
+import { useAdminGuard } from "@/lib/useAdminGuard";
 
 interface CuratedVideo {
   id: string;
@@ -66,6 +67,7 @@ const MOCK_VIDEOS: CuratedVideo[] = [
 
 export default function AdminVideosPage() {
   const router = useRouter();
+  const { checked, allowed } = useAdminGuard();
   const [videos, setVideos] = useState<CuratedVideo[]>(MOCK_VIDEOS);
   const [filter, setFilter] = useState<"all" | "pending" | "mapped" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,6 +102,8 @@ export default function AdminVideosPage() {
       day: "numeric"
     });
   };
+
+  if (!checked || !allowed) return null;
 
   return (
     <div className="flex flex-col flex-1">

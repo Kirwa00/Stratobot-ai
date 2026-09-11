@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { login, register } from "@/lib/auth";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  const redirect = params.get("redirect") || "/";
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,19 +26,19 @@ export default function LoginPage() {
       if (isLogin) {
         const result = await login(email, password);
         if (result.success) {
-          router.push("/");
+          router.push(redirect);
         } else {
           setError(result.error || "Login failed");
         }
       } else {
         const result = await register(email, password, name);
         if (result.success) {
-          router.push("/");
+          router.push(redirect);
         } else {
           setError(result.error || "Registration failed");
         }
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);
@@ -47,6 +49,13 @@ export default function LoginPage() {
     setEmail("demo@stratobot.ai");
     setPassword("demo123");
   };
+
+  const handleAdminLogin = () => {
+    setEmail("admin@stratobot.ai");
+    setPassword("admin123");
+  };
+
+  const wantsAdmin = redirect.startsWith("/admin");
 
   return (
     <div className="flex flex-col flex-1">
@@ -60,6 +69,15 @@ export default function LoginPage() {
             {isLogin ? "Sign in to continue building your trading bots" : "Start creating trading strategies today"}
           </p>
         </div>
+
+        {wantsAdmin && (
+          <div className="mb-6 flex items-start gap-2 rounded-lg border border-caution bg-caution-bg/20 px-4 py-3">
+            <span className="material-symbols-outlined text-caution text-base shrink-0">lock</span>
+            <p className="text-xs text-chalk/80 leading-relaxed">
+              That page needs an admin account. Sign in with one that has admin access.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {!isLogin && (
@@ -132,16 +150,32 @@ export default function LoginPage() {
         </div>
 
         {isLogin && (
-          <div className="mt-8 pt-6 border-t border-outline">
+          <div className="mt-8 pt-6 border-t border-outline flex flex-col gap-1">
             <button
               onClick={handleDemoLogin}
               className="w-full py-2 text-xs text-chalk/50 hover:text-chalk transition-colors"
             >
               Try demo account
             </button>
+            {wantsAdmin && (
+              <button
+                onClick={handleAdminLogin}
+                className="w-full py-2 text-xs text-chalk/50 hover:text-chalk transition-colors"
+              >
+                Try admin account
+              </button>
+            )}
           </div>
         )}
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   );
 }

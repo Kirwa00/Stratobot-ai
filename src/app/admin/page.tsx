@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
-import { Button } from "@/components/Button";
+import { logout } from "@/lib/auth";
+import { useAdminGuard } from "@/lib/useAdminGuard";
 
 export default function AdminPage() {
   const router = useRouter();
+  const { checked, allowed, user } = useAdminGuard();
 
   const adminSections = [
     {
@@ -52,17 +54,30 @@ export default function AdminPage() {
     }
   ];
 
+  if (!checked || !allowed) return null;
+
   return (
     <div className="flex flex-col flex-1">
       <Header title="Admin Dashboard" />
       <main className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="font-display font-bold text-2xl text-chalk mb-2">
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-chalk/60">
-            Manage content, users, and system configuration
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display font-bold text-2xl text-chalk mb-2">
+              Admin Dashboard
+            </h1>
+            <p className="text-sm text-chalk/60">
+              Manage content, users, and system configuration
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              router.replace("/");
+            }}
+            className="shrink-0 text-xs text-chalk/50 hover:text-chalk px-3 py-2 rounded-md border border-outline hover:bg-slate-high transition-colors"
+          >
+            Sign out
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
@@ -91,14 +106,17 @@ export default function AdminPage() {
         <div className="mt-8 p-4 rounded-lg border border-caution bg-caution-bg/20">
           <div className="flex items-start gap-3">
             <span className="material-symbols-outlined text-caution shrink-0">
-              warning
+              info
             </span>
             <div>
               <p className="text-sm font-medium text-chalk mb-1">
-                Admin Access Only
+                Signed in as {user?.email}
               </p>
               <p className="text-xs text-chalk/60">
-                This area is restricted to authorized administrators only. All actions are logged.
+                This page checks for an admin account before loading — it isn&apos;t just a
+                convention, you were redirected to sign in to reach it. There&apos;s no audit
+                log yet; every action below writes to this device&apos;s local storage only,
+                same as the rest of the app.
               </p>
             </div>
           </div>

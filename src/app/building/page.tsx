@@ -64,7 +64,7 @@ export default function BuildingPage() {
       <p className="text-[15px] text-chalk/90">{STAGES[stage]}</p>
 
       <p className="text-sm text-chalk/50">
-        {taking_long ? "Taking longer than usual — still working." : "Usually takes about 40 seconds."}
+        {taking_long ? "Taking longer than usual — still working." : "Usually takes just a few seconds."}
       </p>
     </div>
   );

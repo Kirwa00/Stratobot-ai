@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
+import { useAdminGuard } from "@/lib/useAdminGuard";
 
 interface VideoStrategy {
   id: string;
@@ -60,6 +61,7 @@ const MOCK_STRATEGIES: VideoStrategy[] = [
 
 export default function AdminStrategiesPage() {
   const router = useRouter();
+  const { checked, allowed } = useAdminGuard();
   const [strategies, setStrategies] = useState<VideoStrategy[]>(MOCK_STRATEGIES);
   const [filter, setFilter] = useState<"all" | "published" | "draft" | "archived">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +89,8 @@ export default function AdminStrategiesPage() {
       year: "numeric"
     });
   };
+
+  if (!checked || !allowed) return null;
 
   return (
     <div className="flex flex-col flex-1">

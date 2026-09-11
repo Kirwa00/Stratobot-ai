@@ -16,7 +16,7 @@ import type { BlockInstance, SimulationResult, Strategy } from "./types";
 
 const STORAGE_KEY = "stratobot.strategy.v1";
 const MISC_KEY = "stratobot.misc.v1";
-const FREE_SIMS = 5;
+export const FREE_SIMS = 5;
 
 function emptyStrategy(rawPrompt = ""): Strategy {
   const now = Date.now();

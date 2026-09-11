@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuthState } from "@/lib/auth";
+import { getAuthState, type AuthState } from "@/lib/auth";
+
+const LOGGED_OUT: AuthState = { user: null, isAuthenticated: false, isLoading: false };
 
 export function Header({
   title,
@@ -16,7 +19,15 @@ export function Header({
   showUserMenu?: boolean;
 }) {
   const router = useRouter();
-  const authState = getAuthState();
+  // Reading localStorage during render would mismatch the server-rendered
+  // (window-less) markup, so start logged-out and pick up the real state
+  // client-side only, same pattern as the speech-recognition feature
+  // detection on the home page.
+  const [authState, setAuthState] = useState<AuthState>(LOGGED_OUT);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAuthState(getAuthState());
+  }, []);
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-outline shrink-0">
@@ -50,7 +61,30 @@ export function Header({
             </div>
           </div>
         )}
-        
+
+        {/* Account entry point on top-level pages only — this is the one
+            place in the app that actually links to /login and /admin;
+            without it both pages were reachable only by typing the URL. */}
+        {!back &&
+          (authState.isAuthenticated && authState.user?.isAdmin ? (
+            <Link
+              href="/admin"
+              aria-label="Admin dashboard"
+              title={authState.user.email}
+              className="material-symbols-outlined p-1 rounded-md hover:bg-slate-high text-chalk/70"
+            >
+              admin_panel_settings
+            </Link>
+          ) : !authState.isAuthenticated ? (
+            <Link
+              href="/login"
+              aria-label="Sign in"
+              className="material-symbols-outlined p-1 rounded-md hover:bg-slate-high text-chalk/70"
+            >
+              person
+            </Link>
+          ) : null)}
+
         {onSettings ? (
           <button
             aria-label="Settings"
