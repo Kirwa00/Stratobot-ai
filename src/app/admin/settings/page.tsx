@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { useAdminGuard } from "@/lib/useAdminGuard";
-import { FREE_SIMS } from "@/lib/store";
+import { FREE_SIMS, PRO_DAYS } from "@/lib/store";
 
 // Honest scope: there's no real backend configuration to change here (no
 // feature flags, no server settings store) — this is read-only, real status
@@ -66,6 +66,7 @@ export default function AdminSettingsPage() {
             tone={llmConfigured === null ? undefined : llmConfigured ? "good" : "warn"}
           />
           <StatusRow label="Free simulations per session" value={String(FREE_SIMS)} />
+          <StatusRow label="Pro pass length" value={`${PRO_DAYS} days from payment`} />
           <StatusRow label="Payment processor" value="Mock (no real gateway wired up)" tone="warn" />
           <StatusRow label="Compile pipeline" value="Client-side MQL5 generation only" tone="warn" />
         </div>

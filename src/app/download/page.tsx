@@ -9,7 +9,8 @@ import { composeStrategyFile, downloadFile } from "@/lib/composer";
 
 export default function DownloadPage() {
   const router = useRouter();
-  const { hydrated, strategy, paid, disclaimerAccepted, acceptDisclaimer } = useStrategyStore();
+  const { hydrated, strategy, paid, proDaysLeft, disclaimerAccepted, acceptDisclaimer } =
+    useStrategyStore();
   const [checked, setChecked] = useState(disclaimerAccepted);
   const [downloaded, setDownloaded] = useState(false);
 
@@ -39,8 +40,14 @@ export default function DownloadPage() {
           <p className="text-sm text-chalk/70 leading-relaxed">
             It&apos;s a normal .mq5 file, saved straight to your device — yours to keep, and yours
             to forward to a teammate or subscriber if you want (they&apos;ll need MetaTrader 5
-            too). Lost it? Just describe the same strategy again — rebuilding is unlimited on Pro.
+            too). Lost it? Just describe the same strategy again — rebuilding is unlimited while
+            your Pro pass is active.
           </p>
+          {proDaysLeft !== null && (
+            <p className="text-xs text-chalk/50">
+              {proDaysLeft} day{proDaysLeft === 1 ? "" : "s"} left on this Pro pass.
+            </p>
+          )}
           <Button className="mt-4 w-full" onClick={() => router.push("/install")}>
             How do I install this?
           </Button>

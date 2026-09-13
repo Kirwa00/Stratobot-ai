@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { SimulationChart } from "@/components/SimulationChart";
-import { useStrategyStore } from "@/lib/store";
+import { useStrategyStore, simsButtonLabel } from "@/lib/store";
 import { simulationMessage, simulationStats } from "@/lib/simulate";
 
 export default function SimulatePage() {
@@ -35,7 +35,7 @@ export default function SimulatePage() {
               disabled={strategy.blocks.length === 0 || simsRemaining === 0}
               onClick={() => runSim()}
             >
-              {simsRemaining === 0 ? "No simulations left" : `Run simulation (${simsRemaining} left)`}
+              {simsButtonLabel("Run simulation", simsRemaining)}
             </Button>
           </div>
         ) : (
@@ -79,7 +79,7 @@ export default function SimulatePage() {
                 onClick={() => runSim()}
                 className="flex-1"
               >
-                {simsRemaining === 0 ? "No simulations left" : `Run again (${simsRemaining} left)`}
+                {simsButtonLabel("Run again", simsRemaining)}
               </Button>
 
               <Button

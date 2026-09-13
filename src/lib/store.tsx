@@ -17,6 +17,24 @@ import type { BlockInstance, SimulationResult, Strategy } from "./types";
 const STORAGE_KEY = "stratobot.strategy.v1";
 const MISC_KEY = "stratobot.misc.v1";
 export const FREE_SIMS = 5;
+export const PRO_DAYS = 30;
+const PRO_DURATION_MS = PRO_DAYS * 24 * 60 * 60 * 1000;
+
+/** Pro is a 30-day pass from the moment of payment, not a perpetual unlock —
+ *  re-derived from a timestamp rather than a stored boolean so it actually
+ *  expires instead of silently staying true forever. */
+function isProActive(paidAt: number | null): boolean {
+  return paidAt !== null && Date.now() - paidAt < PRO_DURATION_MS;
+}
+
+/** Renders a "Run simulation" / "Run again" / "Simulate" button label given
+ *  simsRemaining — which is Infinity during an active Pro pass. Centralized
+ *  so every screen that spends a sim describes "unlimited" the same way. */
+export function simsButtonLabel(verb: string, simsRemaining: number): string {
+  if (simsRemaining === 0) return "No simulations left";
+  if (!Number.isFinite(simsRemaining)) return `${verb} (unlimited)`;
+  return `${verb} (${simsRemaining} left)`;
+}
 
 function emptyStrategy(rawPrompt = ""): Strategy {
   const now = Date.now();
@@ -34,7 +52,7 @@ function emptyStrategy(rawPrompt = ""): Strategy {
 
 interface MiscState {
   simsUsed: number;
-  paid: boolean;
+  paidAt: number | null;
   disclaimerAccepted: boolean;
 }
 
@@ -42,8 +60,12 @@ interface StoreValue {
   hydrated: boolean;
   strategy: Strategy | null;
   simResult: SimulationResult | null;
+  /** Infinity while a 30-day Pro pass is active — always check with
+   *  Number.isFinite() before rendering it as a plain number. */
   simsRemaining: number;
   paid: boolean;
+  /** Whole days left on the current Pro pass, or null if not active. */
+  proDaysLeft: number | null;
   disclaimerAccepted: boolean;
   parsing: boolean;
 
@@ -70,7 +92,7 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const [parsing, setParsing] = useState(false);
   const [misc, setMisc] = useState<MiscState>({
     simsUsed: 0,
-    paid: false,
+    paidAt: null,
     disclaimerAccepted: false,
   });
 
@@ -236,7 +258,9 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const runBatchSim = useCallback(
     (count: number): SimulationResult[] => {
       if (!strategy) return [];
-      const available = Math.max(0, FREE_SIMS - misc.simsUsed);
+      const available = isProActive(misc.paidAt)
+        ? count
+        : Math.max(0, FREE_SIMS - misc.simsUsed);
       const n = Math.max(0, Math.min(count, available));
       if (n === 0) return [];
       const results: SimulationResult[] = [];
@@ -246,10 +270,10 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       setMisc((m) => ({ ...m, simsUsed: m.simsUsed + n }));
       return results;
     },
-    [strategy, misc.simsUsed]
+    [strategy, misc.simsUsed, misc.paidAt]
   );
 
-  const markPaid = useCallback(() => setMisc((m) => ({ ...m, paid: true })), []);
+  const markPaid = useCallback(() => setMisc((m) => ({ ...m, paidAt: Date.now() })), []);
   const acceptDisclaimer = useCallback(
     () => setMisc((m) => ({ ...m, disclaimerAccepted: true })),
     []
@@ -258,18 +282,42 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const resetAll = useCallback(() => {
     setStrategy(null);
     setSimResult(null);
-    setMisc({ simsUsed: 0, paid: false, disclaimerAccepted: false });
+    setMisc({ simsUsed: 0, paidAt: null, disclaimerAccepted: false });
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(MISC_KEY);
   }, []);
+
+  // Date.now() is impure, so it can't be called directly during render (it
+  // would make render output depend on wall-clock time rather than props/
+  // state). Snapshot pro status in an effect instead, re-derived whenever
+  // paidAt changes — same hydration-style pattern used for `strategy`/`misc`
+  // above. Note: this means an extreme edge case (a tab left open
+  // continuously for 30+ days with no navigation) could show stale "still
+  // active" status until something re-triggers the effect — acceptable for
+  // a client-only pass like this.
+  const [proStatus, setProStatus] = useState<{ active: boolean; daysLeft: number | null }>({
+    active: false,
+    daysLeft: null,
+  });
+  useEffect(() => {
+    const active = isProActive(misc.paidAt);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProStatus({
+      active,
+      daysLeft: active
+        ? Math.max(1, Math.ceil((misc.paidAt! + PRO_DURATION_MS - Date.now()) / 86400000))
+        : null,
+    });
+  }, [misc.paidAt]);
 
   const value = useMemo<StoreValue>(
     () => ({
       hydrated,
       strategy,
       simResult,
-      simsRemaining: Math.max(0, FREE_SIMS - misc.simsUsed),
-      paid: misc.paid,
+      simsRemaining: proStatus.active ? Infinity : Math.max(0, FREE_SIMS - misc.simsUsed),
+      paid: proStatus.active,
+      proDaysLeft: proStatus.daysLeft,
       disclaimerAccepted: misc.disclaimerAccepted,
       parsing,
       startFromPrompt,
@@ -290,6 +338,7 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       strategy,
       simResult,
       misc,
+      proStatus,
       parsing,
       startFromPrompt,
       startFromBlocks,

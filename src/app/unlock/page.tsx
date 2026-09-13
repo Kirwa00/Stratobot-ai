@@ -65,13 +65,14 @@ export default function UnlockPage() {
             <p className="font-display font-bold text-lg text-chalk mono-num">KES 2,500</p>
           </div>
           <p className="text-xs text-chalk/50 mb-3">
-            One-time payment — not a subscription. No recurring charge.
+            Unlocks unlimited access for 30 days. Not an auto-renewing subscription — pay again
+            after it expires if you want to keep going.
           </p>
           <ul className="flex flex-col gap-2 text-sm text-chalk/85">
             {[
               "Your strategy as an MQL5 (.mq5) file, ready to compile in MetaTrader",
-              "Unlimited simulations on this and future strategies",
-              "Unlimited strategies — describe as many bots as you like",
+              "Unlimited simulations for 30 days",
+              "Unlimited strategies and downloads for 30 days",
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-signal text-base mt-0.5">check</span>

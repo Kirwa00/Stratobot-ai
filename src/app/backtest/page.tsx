@@ -91,8 +91,10 @@ export default function BacktestPage() {
             ))}
           </div>
           <p className="text-xs text-chalk/50 mt-2">
-            {simsRemaining} simulation{simsRemaining === 1 ? "" : "s"} left. Each run in the batch
-            counts as one.
+            {Number.isFinite(simsRemaining)
+              ? `${simsRemaining} simulation${simsRemaining === 1 ? "" : "s"} left.`
+              : "Unlimited on Pro."}{" "}
+            Each run in the batch counts as one.
           </p>
         </div>
 

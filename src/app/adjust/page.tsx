@@ -8,7 +8,7 @@ import { StrategyStrip } from "@/components/StrategyStrip";
 import { ParameterSheet } from "@/components/ParameterSheet";
 import { BlockPickerSheet } from "@/components/BlockPickerSheet";
 import { getBlock } from "@/lib/blocks";
-import { useStrategyStore } from "@/lib/store";
+import { useStrategyStore, simsButtonLabel } from "@/lib/store";
 import type { BlockInstance } from "@/lib/types";
 
 function BlockRow({
@@ -161,7 +161,7 @@ function AdjustInner() {
             router.push("/simulate");
           }}
         >
-          {simsRemaining === 0 ? "No simulations left" : `Simulate (${simsRemaining} left)`}
+          {simsButtonLabel("Simulate", simsRemaining)}
         </Button>
       </div>
 

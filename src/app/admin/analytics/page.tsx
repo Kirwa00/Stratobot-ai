@@ -26,7 +26,7 @@ function StatTile({ label, value }: { label: string; value: string | number }) {
 
 export default function AdminAnalyticsPage() {
   const { checked, allowed } = useAdminGuard();
-  const { strategy, simsRemaining, paid } = useStrategyStore();
+  const { strategy, simsRemaining, paid, proDaysLeft } = useStrategyStore();
 
   if (!checked || !allowed) return null;
 
@@ -47,8 +47,14 @@ export default function AdminAnalyticsPage() {
             This device&apos;s session
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            <StatTile label="Simulations left" value={simsRemaining} />
-            <StatTile label="Unlocked" value={paid ? "Yes" : "No"} />
+            <StatTile
+              label="Simulations left"
+              value={Number.isFinite(simsRemaining) ? simsRemaining : "Unlimited"}
+            />
+            <StatTile
+              label="Pro pass"
+              value={paid ? `Active, ${proDaysLeft}d left` : "Not active"}
+            />
             <StatTile label="Current strategy" value={strategy?.name ?? "None"} />
             <StatTile label="Blocks in it" value={strategy?.blocks.length ?? 0} />
           </div>
