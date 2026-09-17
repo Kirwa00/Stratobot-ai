@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
-import { useStrategyStore } from "@/lib/store";
+import { useStrategyStore, BETA_CODE } from "@/lib/store";
 
 export default function UnlockPage() {
   const router = useRouter();
   const { hydrated, strategy, paid, markPaid } = useStrategyStore();
   const [processing, setProcessing] = useState(false);
   const pendingPayment = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [betaCode, setBetaCode] = useState("");
+  const [betaError, setBetaError] = useState(false);
+
+  function redeemBeta() {
+    if (betaCode.trim().toUpperCase() === BETA_CODE) {
+      markPaid();
+    } else {
+      setBetaError(true);
+    }
+  }
 
   useEffect(() => {
     if (hydrated && !strategy) router.replace("/");
@@ -116,6 +126,36 @@ export default function UnlockPage() {
         <p className="text-xs text-chalk/50 text-center leading-relaxed">
           Your strategy is saved. Nothing is lost if you come back later.
         </p>
+
+        <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
+            Beta tester?
+          </p>
+          <p className="text-xs text-chalk/70 mb-3 leading-relaxed">
+            If you signed up on our{" "}
+            <a href="/beta" className="text-secondary hover:underline">
+              beta desk
+            </a>{" "}
+            and got a code by email, redeem it here for a free 30-day Pro pass.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={betaCode}
+              onChange={(e) => {
+                setBetaCode(e.target.value);
+                setBetaError(false);
+              }}
+              placeholder="Beta code"
+              className="flex-1 min-w-0 rounded-lg border border-outline bg-slate-high text-chalk placeholder:text-chalk/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary"
+            />
+            <Button variant="ghost" size="sm" onClick={redeemBeta} disabled={!betaCode.trim()}>
+              Redeem
+            </Button>
+          </div>
+          {betaError && (
+            <p className="text-xs text-sell mt-2">That code didn&apos;t match. Check your email.</p>
+          )}
+        </div>
       </main>
     </div>
   );

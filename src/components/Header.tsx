@@ -62,6 +62,17 @@ export function Header({
           </div>
         )}
 
+        {!back && (
+          <Link
+            href="/feedback"
+            aria-label="Send feedback"
+            title="Send feedback"
+            className="material-symbols-outlined p-1 rounded-md hover:bg-slate-high text-chalk/70"
+          >
+            chat_bubble
+          </Link>
+        )}
+
         {/* Account entry point on top-level pages only — this is the one
             place in the app that actually links to /login and /admin;
             without it both pages were reachable only by typing the URL. */}
