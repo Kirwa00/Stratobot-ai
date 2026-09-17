@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
+import { AffiliateCard } from "@/components/AffiliateCard";
+import { AFFILIATE_OFFERS } from "@/lib/affiliates";
 import { useStrategyStore } from "@/lib/store";
 import { composeStrategyFile, downloadFile } from "@/lib/composer";
 
@@ -51,6 +53,9 @@ export default function DownloadPage() {
           <Button className="mt-4 w-full" onClick={() => router.push("/install")}>
             How do I install this?
           </Button>
+          <div className="w-full text-left">
+            <AffiliateCard offer={AFFILIATE_OFFERS.demoBroker} />
+          </div>
         </main>
       </div>
     );

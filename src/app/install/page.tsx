@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
+import { AffiliateCard } from "@/components/AffiliateCard";
+import { AFFILIATE_OFFERS } from "@/lib/affiliates";
 
 const DESKTOP_STEPS = [
   {
@@ -103,6 +105,8 @@ export default function InstallPage() {
           <p className="text-[15px] text-chalk/85 leading-relaxed">{steps[step].body}</p>
         </div>
 
+        {isMobile && step === 1 && <AffiliateCard offer={AFFILIATE_OFFERS.vps} />}
+
         <button
           onClick={() => setShowHelp((s) => !s)}
           className="text-sm text-secondary text-left"
@@ -122,11 +126,14 @@ export default function InstallPage() {
         )}
 
         {isLast && (
-          <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
-            <p className="text-sm text-chalk font-medium">
-              Run it on demo for at least a week before trading live.
-            </p>
-          </div>
+          <>
+            <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
+              <p className="text-sm text-chalk font-medium">
+                Run it on demo for at least a week before trading live.
+              </p>
+            </div>
+            {!isMobile && <AffiliateCard offer={AFFILIATE_OFFERS.vps} />}
+          </>
         )}
       </main>
 
