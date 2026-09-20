@@ -58,7 +58,7 @@ export const VPS_PROVIDERS: VpsProvider[] = [
     focus: "Forex-specialized",
     fromPrice: "From ~$21–25/mo",
     note: "16 server locations, broker-independent, month-to-month with no long-term contract.",
-    href: "https://example.com/affiliate/fxvm-placeholder",
+    href: "https://fxvm.net/?aff=125075",
   },
   {
     id: "vultr",
@@ -66,7 +66,7 @@ export const VPS_PROVIDERS: VpsProvider[] = [
     focus: "General-purpose",
     fromPrice: "Windows VPS from ~$26/mo",
     note: "Cheap global cloud compute — you install MetaTrader 5 yourself over RDP. Not forex-specific.",
-    href: "https://example.com/affiliate/vultr-placeholder",
+    href: "https://www.vultr.com/?ref=9923993",
   },
   {
     id: "contabo",
