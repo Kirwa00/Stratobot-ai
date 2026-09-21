@@ -132,6 +132,10 @@ export default function DescribePage() {
     <div className="flex flex-col flex-1">
       <Header />
       <main className="flex-1 flex flex-col px-4 pt-6 pb-32 overflow-y-auto">
+        <p className="text-sm text-chalk/70 leading-relaxed mb-5">
+          Turn your trading strategy into an Expert Advisor without hiring a programmer.
+        </p>
+
         {showHowItWorks && <HowItWorks onDismiss={dismissHowItWorks} />}
 
         <h1 className="font-display font-bold text-2xl text-chalk mb-4">

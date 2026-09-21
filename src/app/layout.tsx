@@ -30,7 +30,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "StratoBot AI",
-  description: "Describe your trading strategy in plain language. Get a working bot.",
+  description: "Turn your trading strategy into an Expert Advisor without hiring a programmer.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "StratoBot" },
   // Mobile optimization
