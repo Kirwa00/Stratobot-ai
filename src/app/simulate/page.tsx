@@ -14,7 +14,7 @@ export default function SimulatePage() {
   const { hydrated, strategy, simResult, simsRemaining, runSim } = useStrategyStore();
 
   useEffect(() => {
-    if (hydrated && !strategy) router.replace("/");
+    if (hydrated && !strategy) router.replace("/app");
   }, [hydrated, strategy, router]);
 
   if (!strategy) return null;

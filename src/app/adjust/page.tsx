@@ -88,7 +88,7 @@ function AdjustInner() {
   useEffect(() => {
     if (!hydrated) return;
     if (!strategy && params.get("new") === "1") startFromBlocks();
-    else if (!strategy) router.replace("/");
+    else if (!strategy) router.replace("/app");
   }, [hydrated, strategy, params, startFromBlocks, router]);
 
   if (!strategy) return null;

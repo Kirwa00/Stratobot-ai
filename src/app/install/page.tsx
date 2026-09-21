@@ -148,7 +148,7 @@ export default function InstallPage() {
         </Button>
         <Button
           className="flex-1"
-          onClick={() => (isLast ? router.push("/") : setStep((s) => s + 1))}
+          onClick={() => (isLast ? router.push("/app") : setStep((s) => s + 1))}
         >
           {isLast ? "Done" : "Next"}
         </Button>

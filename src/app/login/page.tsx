@@ -9,7 +9,7 @@ import { login, register } from "@/lib/auth";
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const redirect = params.get("redirect") || "/";
+  const redirect = params.get("redirect") || "/app";
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

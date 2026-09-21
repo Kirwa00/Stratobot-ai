@@ -41,7 +41,7 @@ export function Header({
             arrow_back
           </button>
         ) : (
-          <Link href="/" className="font-display font-bold tracking-tight text-lg text-chalk">
+          <Link href="/app" className="font-display font-bold tracking-tight text-lg text-chalk">
             StratoBot
           </Link>
         )}

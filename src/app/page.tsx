@@ -1,211 +1,188 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
-import { useStrategyStore } from "@/lib/store";
+import { CtaBanner } from "@/components/CtaBanner";
+import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
 
-const EXAMPLES = [
-  "London killzone, sweep PDH, enter on 50% retrace, trail stop 30 pips",
-  "Wait for a bullish order block in New York, enter on engulfing candle",
-  "9/21 EMA cross when ATR is above average, trail stop 20 pips",
+export const metadata = {
+  title: "StratoBot AI — Turn Your Trading Strategy Into an EA",
+  description: "Describe your trading strategy in plain language. StratoBot builds a real MetaTrader 5 Expert Advisor — no MQL4/MQL5 programming, no hiring a programmer.",
+};
+
+const OLD_WAY_STEPS = [
+  "Write a technical spec",
+  "Find an MQL4/MQL5 programmer",
+  "Explain the strategy, repeatedly",
+  "Pay upfront",
+  "Wait 2–4+ weeks",
+  "Test it yourself",
+  "Request revisions",
+  "Pay again",
 ];
 
-const HOW_IT_WORKS_KEY = "stratobot.howItWorksDismissed.v1";
-
-const STEPS = [
+const HOW_IT_WORKS_STEPS = [
   { icon: "edit_note", label: "Describe" },
   { icon: "science", label: "Check it" },
   { icon: "lock_open", label: "Unlock" },
   { icon: "download", label: "Download" },
 ] as const;
 
-function HowItWorks({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="relative rounded-lg border border-outline bg-slate px-4 py-3.5 mb-5">
-      <button
-        onClick={onDismiss}
-        aria-label="Dismiss"
-        className="material-symbols-outlined absolute top-2 right-2 text-base text-chalk/40 p-1 rounded-md hover:bg-slate-high hover:text-chalk/70"
-      >
-        close
-      </button>
-      <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3 pr-6">
-        How it works
-      </p>
-      <div className="flex items-center justify-between mb-3">
-        {STEPS.map((step, i) => (
-          <div key={step.label} className="flex items-center flex-1">
-            <div className="flex flex-col items-center gap-1 flex-1">
-              <span className="material-symbols-outlined text-signal text-xl">{step.icon}</span>
-              <span className="text-xs font-medium text-chalk text-center">{step.label}</span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <span className="material-symbols-outlined text-outline text-base shrink-0 -mt-4">
-                arrow_forward
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-      <p className="text-xs text-chalk/60 leading-relaxed">
-        Type your strategy in plain language, run a free logic check to see if your rules fire,
-        then unlock once you&apos;re happy to download a bot for MetaTrader 5.
-      </p>
-    </div>
-  );
-}
+const FEATURES = [
+  { icon: "edit_note", title: "Plain-language input", body: "No technical spec required — describe entries, exits, and risk rules like you'd explain them to another trader." },
+  { icon: "code", title: "Deterministic MQL5", body: "Assembled from hand-written, pre-tested templates — never freeform AI-generated code." },
+  { icon: "download", title: "Real, compilable output", body: "An actual .mq5 file you open in MetaEditor, compile, and run — nothing locked to our platform." },
+];
 
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  onresult: ((e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-export default function DescribePage() {
-  const router = useRouter();
-  const { startFromPrompt, parsing } = useStrategyStore();
-  const [text, setText] = useState("");
-  const [listening, setListening] = useState(false);
-  const [canListen, setCanListen] = useState(false);
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-
-  // Feature-detected client-side only, to avoid a server/client markup mismatch.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCanListen("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
-    try {
-      setShowHowItWorks(!window.localStorage.getItem(HOW_IT_WORKS_KEY));
-    } catch {
-      setShowHowItWorks(true);
-    }
-  }, []);
-
-  function dismissHowItWorks() {
-    setShowHowItWorks(false);
-    try {
-      window.localStorage.setItem(HOW_IT_WORKS_KEY, "1");
-    } catch {
-      // localStorage unavailable — dismissal just won't persist across visits
-    }
-  }
-
-  function toggleListen() {
-    if (!canListen) return;
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    const w = window as unknown as Record<string, unknown>;
-    const Ctor = (w.SpeechRecognition || w.webkitSpeechRecognition) as
-      | (new () => SpeechRecognitionLike)
-      | undefined;
-    if (!Ctor) return;
-    const rec = new Ctor();
-    rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      setText((t) => (t ? `${t} ${transcript}` : transcript));
-    };
-    rec.onend = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
-  }
-
-  async function submit(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed || parsing) return;
-    await startFromPrompt(trimmed);
-    router.push("/readback");
-  }
-
+export default function LandingPage() {
   return (
     <div className="flex flex-col flex-1">
       <Header />
-      <main className="flex-1 flex flex-col px-4 pt-6 pb-32 overflow-y-auto">
-        <p className="text-sm text-chalk/70 leading-relaxed mb-5">
-          Turn your trading strategy into an Expert Advisor without hiring a programmer.
-        </p>
-
-        {showHowItWorks && <HowItWorks onDismiss={dismissHowItWorks} />}
-
-        <h1 className="font-display font-bold text-2xl text-chalk mb-4">
-          What&apos;s your strategy?
-        </h1>
-
-        <div className="relative">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={5}
-            placeholder="Type it the way you'd explain it to another trader."
-            className="w-full resize-none rounded-lg border border-outline bg-slate text-chalk placeholder:text-chalk/40 px-4 py-3.5 pr-14 text-[15px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary"
-          />
-          {canListen && (
-            <button
-              onClick={toggleListen}
-              aria-label="Voice input"
-              className={`material-symbols-outlined absolute bottom-3 right-3 rounded-full p-2 ${
-                listening ? "bg-signal text-white" : "bg-slate-high text-chalk/70"
-              }`}
-            >
-              mic
-            </button>
-          )}
+      <main className="flex-1 overflow-y-auto px-4 py-6 pb-10 flex flex-col gap-8">
+        {/* Hero */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-signal mb-2">
+            Strategy → EA
+          </p>
+          <h1 className="font-display font-bold text-2xl text-chalk mb-3">
+            Turn your trading strategy into an Expert Advisor
+          </h1>
+          <p className="text-sm text-chalk/70 leading-relaxed mb-5">
+            No MQL4/MQL5 programming required — and no hiring a programmer. You create the
+            strategy. StratoBot creates the EA.
+          </p>
+          <Link href="/app">
+            <Button className="w-full">Describe your strategy — free</Button>
+          </Link>
         </div>
 
-        {!text && (
-          <div className="mt-4 flex flex-col gap-2">
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex}
-                onClick={() => setText(ex)}
-                className="text-left text-sm text-chalk/70 border border-outline rounded-md px-3 py-2 hover:bg-slate hover:text-chalk transition-colors"
-              >
-                &ldquo;{ex}&rdquo;
-              </button>
+        {/* Problem */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
+            The problem
+          </p>
+          <p className="text-sm text-chalk/85 leading-relaxed mb-3">
+            You have a strategy, but turning it into an automated system usually means hiring an
+            MQL4/MQL5 programmer:
+          </p>
+          <div className="rounded-lg border border-outline bg-slate px-4 py-3.5 mb-3">
+            <ol className="flex flex-col gap-1.5 text-sm text-chalk/60">
+              {OLD_WAY_STEPS.map((step, i) => (
+                <li key={step} className="flex items-start gap-2">
+                  <span className="font-mono text-xs text-chalk/40 mt-0.5 shrink-0">{i + 1}.</span>
+                  <span className="line-through decoration-chalk/30">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <Link href="/compare/ea-programmer-alternative" className="text-sm text-secondary hover:underline">
+            See the full cost &amp; time comparison →
+          </Link>
+        </div>
+
+        {/* How it works */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-buy mb-3">
+            How it works
+          </p>
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {HOW_IT_WORKS_STEPS.map((s) => (
+              <div key={s.label} className="flex flex-col items-center gap-1.5 text-center">
+                <span className="material-symbols-outlined text-signal text-xl">{s.icon}</span>
+                <span className="text-xs font-medium text-chalk">{s.label}</span>
+              </div>
             ))}
           </div>
-        )}
-
-        <div className="flex items-center gap-3 my-6">
-          <div className="h-px bg-outline flex-1" />
-          <span className="text-xs font-mono text-chalk/40 uppercase tracking-wider">or</span>
-          <div className="h-px bg-outline flex-1" />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <Link href="/adjust?new=1">
-            <Button variant="ghost" className="w-full">
-              Build with blocks
-            </Button>
-          </Link>
-          <Link href="/library">
-            <Button variant="ghost" className="w-full">
-              Browse video strategies
-            </Button>
+          <Link href="/how-it-works" className="text-sm text-secondary hover:underline">
+            See the full walkthrough →
           </Link>
         </div>
+
+        {/* Example strategy → EA output */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
+            Example
+          </p>
+          <div className="rounded-lg bg-ink border border-outline px-4 py-4 mb-3">
+            <p className="font-mono text-[13px] text-chalk/70 leading-relaxed">
+              <span className="text-signal">&gt;</span> &ldquo;London killzone, sweep PDH, enter on
+              50% retrace, trail stop 30 pips&rdquo;
+            </p>
+          </div>
+          <p className="text-sm text-chalk/85 leading-relaxed mb-2">
+            Becomes a real <code className="text-signal">.mq5</code> file — a session-time
+            filter, prior-day-high sweep detection, a 50% retracement entry, and a 30-pip
+            trailing stop, all assembled from tested code blocks, not freeform AI code.
+          </p>
+          <Link href="/demo" className="text-sm text-secondary hover:underline">
+            See the full demo walkthrough →
+          </Link>
+        </div>
+
+        {/* Features */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
+            Features
+          </p>
+          <div className="flex flex-col gap-3 mb-3">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="rounded-lg border border-outline bg-slate px-4 py-3.5 flex gap-3">
+                <span className="material-symbols-outlined text-signal text-xl shrink-0">
+                  {f.icon}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-chalk mb-1">{f.title}</p>
+                  <p className="text-xs text-chalk/70 leading-relaxed">{f.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Link href="/features" className="text-sm text-secondary hover:underline">
+            See all features →
+          </Link>
+        </div>
+
+        {/* Backtesting honesty note */}
+        <div className="p-3 rounded-lg border border-caution bg-caution-bg/20">
+          <p className="text-xs text-chalk/80 leading-relaxed">
+            Before you download, a free logic check confirms your rules fire the way you
+            described — on a synthetic price path, not real market history. It&apos;s not a
+            backtest and not a promise of profitability.{" "}
+            <Link href="/backtesting" className="text-secondary hover:underline">
+              Read the honest answer →
+            </Link>
+          </p>
+        </div>
+
+        {/* Pricing */}
+        <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
+            Pricing
+          </p>
+          <p className="text-sm text-chalk/85 leading-relaxed">
+            Free to describe your strategy and run {FREE_SIMS} logic checks. KES{" "}
+            {PRICE_KES.toLocaleString("en-KE")} unlocks unlimited strategies and downloads for{" "}
+            {PRO_DAYS} days.{" "}
+            <Link href="/pricing" className="text-secondary hover:underline">
+              See full pricing →
+            </Link>
+          </p>
+        </div>
+
+        {/* FAQ teaser */}
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-2">
+            Common questions
+          </p>
+          <p className="text-sm text-chalk/70 leading-relaxed mb-1">
+            Do I need to know MQL5? Will this guarantee my strategy makes money? Do I need a VPS?
+          </p>
+          <Link href="/faq" className="text-sm text-secondary hover:underline">
+            Read the full FAQ →
+          </Link>
+        </div>
+
+        <CtaBanner />
       </main>
-
-      <div className="sticky bottom-0 px-4 py-4 border-t border-outline bg-ink safe-bottom">
-        <Button
-          className="w-full"
-          disabled={!text.trim() || parsing}
-          onClick={() => submit(text)}
-        >
-          {parsing ? "Reading your strategy…" : "Read my strategy"}
-        </Button>
-      </div>
     </div>
   );
 }

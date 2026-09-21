@@ -16,7 +16,7 @@ export default function ReadbackPage() {
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (hydrated && !strategy) router.replace("/");
+    if (hydrated && !strategy) router.replace("/app");
   }, [hydrated, strategy, router]);
 
   if (!strategy) return null;

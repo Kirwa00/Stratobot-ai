@@ -25,7 +25,7 @@ export default function UnlockPage() {
   }
 
   useEffect(() => {
-    if (hydrated && !strategy) router.replace("/");
+    if (hydrated && !strategy) router.replace("/app");
   }, [hydrated, strategy, router]);
 
   useEffect(() => {

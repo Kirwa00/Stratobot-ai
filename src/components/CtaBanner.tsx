@@ -14,7 +14,7 @@ export function CtaBanner({
     <div className="rounded-lg border border-signal/40 bg-slate px-4 py-5 text-center flex flex-col items-center gap-3">
       <p className="font-display font-bold text-lg text-chalk">{title}</p>
       <p className="text-sm text-chalk/70 leading-relaxed max-w-[32ch]">{body}</p>
-      <Link href="/" className="w-full">
+      <Link href="/app" className="w-full">
         <Button className="w-full">{ctaText}</Button>
       </Link>
       <p className="text-xs text-chalk/50">

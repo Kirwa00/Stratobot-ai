@@ -18,7 +18,7 @@ export default function DownloadPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!strategy || !paid) router.replace("/");
+    if (!strategy || !paid) router.replace("/app");
   }, [hydrated, strategy, paid, router]);
 
   if (!strategy) return null;

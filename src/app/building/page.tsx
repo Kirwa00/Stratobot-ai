@@ -21,7 +21,7 @@ export default function BuildingPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!strategy || !paid) router.replace("/");
+    if (!strategy || !paid) router.replace("/app");
   }, [hydrated, strategy, paid, router]);
 
   useEffect(() => {

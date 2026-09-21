@@ -75,7 +75,7 @@ export default function HowToCreateMt5EaPage() {
           </p>
         </div>
 
-        <Link href="/" className="w-full">
+        <Link href="/app" className="w-full">
           <Button className="w-full">Start with step 1 — describe your strategy</Button>
         </Link>
 

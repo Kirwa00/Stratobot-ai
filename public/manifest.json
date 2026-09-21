@@ -2,7 +2,7 @@
   "name": "StratoBot AI",
   "short_name": "StratoBot",
   "description": "Turn your trading strategy into an Expert Advisor without hiring a programmer.",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#0e1420",
   "theme_color": "#0e1420",
