@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo, Inter, IBM_Plex_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { StrategyProvider } from "@/lib/store";
 import "./globals.css";
 
@@ -96,6 +97,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </div>
         </StrategyProvider>
+        <Analytics />
       </body>
     </html>
   );
