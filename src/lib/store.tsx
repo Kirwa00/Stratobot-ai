@@ -13,15 +13,10 @@ import { getBlock } from "./blocks";
 import { parsePrompt, newStrategyName } from "./parser";
 import { runSimulation } from "./simulate";
 import type { BlockInstance, SimulationResult, Strategy } from "./types";
+import { FREE_SIMS, PRO_DAYS } from "./constants";
 
 const STORAGE_KEY = "stratobot.strategy.v1";
 const MISC_KEY = "stratobot.misc.v1";
-export const FREE_SIMS = 5;
-export const PRO_DAYS = 30;
-/** Shared code handed out by email to beta testers so they can redeem a real
- *  30-day Pro pass (via markPaid()) without paying — not a per-user secret,
- *  same trust model as the rest of this no-backend app. */
-export const BETA_CODE = "STRATOBETA30";
 const PRO_DURATION_MS = PRO_DAYS * 24 * 60 * 60 * 1000;
 
 /** Pro is a 30-day pass from the moment of payment, not a perpetual unlock —

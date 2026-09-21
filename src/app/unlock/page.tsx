@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
-import { useStrategyStore, BETA_CODE } from "@/lib/store";
+import { useStrategyStore } from "@/lib/store";
+import { BETA_CODE, PRICE_KES } from "@/lib/constants";
 
 export default function UnlockPage() {
   const router = useRouter();
@@ -72,7 +73,9 @@ export default function UnlockPage() {
         <div className="rounded-lg border border-outline bg-slate px-4 py-4">
           <div className="flex items-baseline justify-between mb-1">
             <p className="font-display font-bold text-lg text-chalk">Pro</p>
-            <p className="font-display font-bold text-lg text-chalk mono-num">KES 2,500</p>
+            <p className="font-display font-bold text-lg text-chalk mono-num">
+              KES {PRICE_KES.toLocaleString("en-KE")}
+            </p>
           </div>
           <p className="text-xs text-chalk/50 mb-3">
             Unlocks unlimited access for 30 days. Not an auto-renewing subscription — pay again

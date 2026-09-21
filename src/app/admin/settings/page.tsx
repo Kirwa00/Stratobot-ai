@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { useAdminGuard } from "@/lib/useAdminGuard";
-import { FREE_SIMS, PRO_DAYS } from "@/lib/store";
+import { FREE_SIMS, PRO_DAYS } from "@/lib/constants";
 
 // Honest scope: there's no real backend configuration to change here (no
 // feature flags, no server settings store) — this is read-only, real status
