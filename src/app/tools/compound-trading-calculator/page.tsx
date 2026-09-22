@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { CompoundTradingCalculator } from "@/components/calculators/CompoundTradingCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Compound Trading Calculator — StratoBot AI",
   description: "See how compounding math works over time. This is not a return forecast — no real strategy delivers a constant return every period.",
-};
+  path: "/tools/compound-trading-calculator",
+});
 
 export default function CompoundTradingCalculatorPage() {
   return (

@@ -46,7 +46,9 @@ export function Header({
           </Link>
         )}
         {title && back && (
-          <h1 className="font-medium text-[15px] truncate text-chalk">{title}</h1>
+          // Nav-bar label, not the page's heading — each page renders its
+          // own <h1> for its actual content further down.
+          <p className="font-medium text-[15px] truncate text-chalk">{title}</p>
         )}
       </div>
       

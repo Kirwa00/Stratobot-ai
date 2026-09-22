@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Convert Your Trading Strategy to an EA — StratoBot AI",
   description:
     "Turn a trading strategy you describe in plain language into a real MT5 Expert Advisor. No MQL4/MQL5 programming, no hiring a programmer.",
-};
+  path: "/convert-strategy-to-ea",
+});
 
 const OLD_WAY_STEPS = [
   "Write a technical spec",

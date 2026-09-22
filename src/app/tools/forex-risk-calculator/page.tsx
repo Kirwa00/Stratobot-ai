@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { ForexRiskCalculator } from "@/components/calculators/ForexRiskCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Forex Risk Calculator — StratoBot AI",
   description: "Calculate the dollar and percentage risk of a forex trade you've already sized, given your stop-loss distance.",
-};
+  path: "/tools/forex-risk-calculator",
+});
 
 export default function ForexRiskCalculatorPage() {
   return (

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "How to Evaluate EA Performance — StratoBot AI",
   description: "The real metrics that matter when judging an EA's performance, and tools to calculate each one.",
-};
+  path: "/performance",
+});
 
 const METRICS = [
   {

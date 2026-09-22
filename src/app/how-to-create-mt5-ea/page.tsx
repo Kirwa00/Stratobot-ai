@@ -3,11 +3,13 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "How to Create an MT5 EA — Step by Step",
   description: "A step-by-step guide to creating a MetaTrader 5 Expert Advisor from your own strategy, from description to a compiled .mq5 file.",
-};
+  path: "/how-to-create-mt5-ea",
+});
 
 const STEPS = [
   {

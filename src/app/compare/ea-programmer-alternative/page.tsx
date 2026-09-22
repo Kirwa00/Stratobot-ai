@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "StratoBot vs. Hiring an EA Programmer",
   description:
     "Comparing StratoBot to hiring a freelance MQL4/MQL5 programmer to build your Expert Advisor: cost, time, revisions, and ownership.",
-};
+  path: "/compare/ea-programmer-alternative",
+});
 
 const ROWS = [
   {

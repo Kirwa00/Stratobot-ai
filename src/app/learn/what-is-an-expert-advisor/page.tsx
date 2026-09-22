@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "What Is an Expert Advisor (EA)? — StratoBot AI",
   description: "A plain explanation of what an Expert Advisor is, how it trades, and what it actually needs to work.",
-};
+  path: "/learn/what-is-an-expert-advisor",
+});
 
 export default function WhatIsAnExpertAdvisorPage() {
   return (

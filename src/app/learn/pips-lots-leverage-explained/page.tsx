@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Pips, Lots, and Leverage Explained — StratoBot AI",
   description: "What pips, lots, and leverage actually mean in forex, and how they connect to position sizing.",
-};
+  path: "/learn/pips-lots-leverage-explained",
+});
 
 export default function PipsLotsLeverageExplainedPage() {
   return (

@@ -1,10 +1,12 @@
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "See StratoBot in Action — Demo Walkthrough",
   description: "A full walkthrough of turning one real strategy into an MT5 EA with StratoBot, screen by screen.",
-};
+  path: "/demo",
+});
 
 const STAGES = [
   {

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "The Real Cost of Hiring an MQL5 Programmer — StratoBot AI Blog",
   description: "What freelance marketplaces actually charge for a custom EA, and how long it actually takes — sourced from public listings.",
-};
+  path: "/blog/real-cost-of-hiring-an-mql5-programmer",
+});
 
 export default function RealCostOfHiringAnMql5ProgrammerPost() {
   return (

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { TradingCostCalculator } from "@/components/calculators/TradingCostCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Trading Cost Calculator — StratoBot AI",
   description: "Calculate total trading costs — spread, commission, and swap — across a series of trades.",
-};
+  path: "/tools/trading-cost-calculator",
+});
 
 export default function TradingCostCalculatorPage() {
   return (

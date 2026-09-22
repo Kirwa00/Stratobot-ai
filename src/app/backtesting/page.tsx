@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Does StratoBot Backtest Strategies? — The Honest Answer",
   description: "StratoBot doesn't backtest against real historical data. Here's what the free logic check actually does, and why the difference matters.",
-};
+  path: "/backtesting",
+});
 
 export default function BacktestingPage() {
   return (

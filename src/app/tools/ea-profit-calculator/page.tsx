@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { EaExpectedValueCalculator } from "@/components/calculators/EaExpectedValueCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "EA Expected Value Calculator — StratoBot AI",
   description: "Calculate the theoretical expected value of an EA from a win rate and average win/loss you provide — not a profit prediction.",
-};
+  path: "/tools/ea-profit-calculator",
+});
 
 export default function EaProfitCalculatorPage() {
   return (

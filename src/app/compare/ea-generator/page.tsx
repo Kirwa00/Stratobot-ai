@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Choosing an EA Generator — Questions to Ask First",
   description: "What to check before trusting any EA generator with your trading strategy, and where StratoBot fits.",
-};
+  path: "/compare/ea-generator",
+});
 
 const QUESTIONS = [
   {

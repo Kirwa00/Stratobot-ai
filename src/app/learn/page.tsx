@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Learn — StratoBot AI",
   description: "Reference guides on Expert Advisors, MQL4 vs MQL5, algorithmic trading, and automating a strategy without coding.",
-};
+  path: "/learn",
+});
 
 const ARTICLES = [
   {

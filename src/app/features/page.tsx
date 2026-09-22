@@ -1,10 +1,12 @@
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Features — StratoBot AI",
   description: "What StratoBot actually does: plain-language strategy input, deterministic MQL5 generation, and honest logic-check testing.",
-};
+  path: "/features",
+});
 
 const FEATURES = [
   {

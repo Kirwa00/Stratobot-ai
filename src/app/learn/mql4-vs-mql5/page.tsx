@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "MQL4 vs MQL5: What's the Difference? — StratoBot AI",
   description: "The real architectural differences between MQL4 and MQL5, and why EAs aren't directly portable between MetaTrader 4 and 5.",
-};
+  path: "/learn/mql4-vs-mql5",
+});
 
 const DIFFERENCES = [
   {

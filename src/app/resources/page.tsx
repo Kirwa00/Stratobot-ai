@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Resources — StratoBot AI",
   description: "Guides, calculators, and useful links for turning a trading strategy into an MT5 Expert Advisor.",
-};
+  path: "/resources",
+});
 
 const GUIDES = [
   { href: "/how-it-works", title: "How it works", body: "The full Describe → Check → Unlock → Download flow." },

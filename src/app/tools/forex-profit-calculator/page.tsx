@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { ForexProfitCalculator } from "@/components/calculators/ForexProfitCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Forex Profit Calculator — StratoBot AI",
   description: "Calculate the profit or loss of a specific forex trade in dollars, given pips and lot size.",
-};
+  path: "/tools/forex-profit-calculator",
+});
 
 export default function ForexProfitCalculatorPage() {
   return (

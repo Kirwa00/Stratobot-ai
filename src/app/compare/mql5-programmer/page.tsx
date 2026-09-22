@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Hiring an MQL5 Programmer — What to Expect",
   description:
     "What it actually involves to hire an MQL5 programmer to build your Expert Advisor, and how StratoBot skips the process.",
-};
+  path: "/compare/mql5-programmer",
+});
 
 const CHECKLIST = [
   {

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Automate Your Forex Strategy — StratoBot AI",
   description: "What automating your own forex strategy actually requires — and how to do it without learning to code.",
-};
+  path: "/automate-forex-strategy",
+});
 
 const REQUIREMENTS = [
   {

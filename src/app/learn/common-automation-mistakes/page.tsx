@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Common Mistakes When Automating a Strategy — StratoBot AI",
   description: "The gaps that most often turn a working manual strategy into a broken or dangerous EA.",
-};
+  path: "/learn/common-automation-mistakes",
+});
 
 const MISTAKES = [
   {

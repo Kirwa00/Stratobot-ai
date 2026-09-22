@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "StratoBot Is in Private Beta — StratoBot AI Blog",
   description: "Why we opened a beta, what free 30-day access gets you, and what we're trying to learn from it.",
-};
+  path: "/blog/stratobot-beta-launch",
+});
 
 export default function StratobotBetaLaunchPost() {
   return (

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Free Forex Trading Calculators — StratoBot AI",
   description: "Free calculators for position sizing, drawdown, risk of ruin, prop firm targets, trading costs, and more.",
-};
+  path: "/tools",
+});
 
 const CALCULATORS = [
   {

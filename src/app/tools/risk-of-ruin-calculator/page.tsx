@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { RiskOfRuinCalculator } from "@/components/calculators/RiskOfRuinCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Risk of Ruin Calculator — StratoBot AI",
   description: "Estimate risk of ruin from your win rate and risk per trade, using a simplified 1:1 reward-to-risk model.",
-};
+  path: "/tools/risk-of-ruin-calculator",
+});
 
 export default function RiskOfRuinCalculatorPage() {
   return (

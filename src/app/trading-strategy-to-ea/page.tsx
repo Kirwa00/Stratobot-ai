@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Trading Strategy to EA — By Strategy Type",
   description: "How different kinds of trading strategies — trend-following, breakout, mean-reversion, session-based — become MT5 Expert Advisors.",
-};
+  path: "/trading-strategy-to-ea",
+});
 
 const STRATEGY_TYPES = [
   {

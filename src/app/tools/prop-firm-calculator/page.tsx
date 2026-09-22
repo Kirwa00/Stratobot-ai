@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PropFirmCalculator } from "@/components/calculators/PropFirmCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Prop Firm Calculator — StratoBot AI",
   description: "Turn a prop firm challenge's percentage rules — profit target, daily loss limit, max drawdown — into real dollar figures.",
-};
+  path: "/tools/prop-firm-calculator",
+});
 
 export default function PropFirmCalculatorPage() {
   return (

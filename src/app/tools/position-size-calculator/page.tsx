@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PositionSizeCalculator } from "@/components/calculators/PositionSizeCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Position Size Calculator — StratoBot AI",
   description: "Calculate the right forex position size in lots based on your account balance, risk %, and stop-loss distance.",
-};
+  path: "/tools/position-size-calculator",
+});
 
 export default function PositionSizeCalculatorPage() {
   return (

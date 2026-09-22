@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Forex Risk Management — StratoBot AI",
   description: "The core risk management concepts every automated strategy needs — position sizing, stop-loss discipline, drawdown limits, and risk of ruin.",
-};
+  path: "/risk-management",
+});
 
 const PRINCIPLES = [
   {

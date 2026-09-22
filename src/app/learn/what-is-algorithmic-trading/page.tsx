@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "What Is Algorithmic Trading? — StratoBot AI",
   description: "A plain explanation of rules-based automated trading, and what it does and doesn't promise.",
-};
+  path: "/learn/what-is-algorithmic-trading",
+});
 
 export default function WhatIsAlgorithmicTradingPage() {
   return (

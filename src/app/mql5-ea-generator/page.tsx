@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "MQL5 EA Generator — Real, Compilable Code",
   description: "What's actually inside the MQL5 file StratoBot generates — deterministic templates, not freeform AI-written code.",
-};
+  path: "/mql5-ea-generator",
+});
 
 const CODE_FACTS = [
   {

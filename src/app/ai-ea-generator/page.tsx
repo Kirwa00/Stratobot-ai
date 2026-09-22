@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "AI EA Generator — What That Actually Means",
   description: "Looking for an AI EA generator? Here's what StratoBot's AI actually does — and why we call it a strategy-to-EA platform, not an AI bot.",
-};
+  path: "/ai-ea-generator",
+});
 
 export default function AiEaGeneratorPage() {
   return (

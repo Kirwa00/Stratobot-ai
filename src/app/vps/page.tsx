@@ -1,5 +1,12 @@
 import { Header } from "@/components/Header";
 import { VPS_PROVIDERS } from "@/lib/affiliates";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Forex VPS Comparison — StratoBot AI",
+  description: "Compare forex-specialized and general-purpose VPS providers so your MT5 Expert Advisor keeps trading after you close your laptop.",
+  path: "/vps",
+});
 
 export default function VpsComparisonPage() {
   return (

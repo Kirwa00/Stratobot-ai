@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Move Your TradingView Strategy to MT5",
   description: "Have a strategy built on TradingView? Here's how to bring the same rules to MetaTrader 5 as a real EA — honestly, without a fake one-click Pine Script converter.",
-};
+  path: "/tradingview-to-mt5",
+});
 
 export default function TradingViewToMt5Page() {
   return (

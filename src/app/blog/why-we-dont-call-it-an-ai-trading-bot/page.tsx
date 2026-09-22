@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArticleShell, ArticleSection } from "@/components/ArticleShell";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Why We Don't Call StratoBot an \"AI Trading Bot\" — StratoBot AI Blog",
   description: "The AI maps your words to code blocks. It doesn't trade, and it doesn't decide what's profitable.",
-};
+  path: "/blog/why-we-dont-call-it-an-ai-trading-bot",
+});
 
 export default function WhyWeDontCallItAnAiTradingBotPost() {
   return (

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { LotSizeCalculator } from "@/components/calculators/LotSizeCalculator";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Lot Size Calculator — StratoBot AI",
   description: "Convert a forex lot size into units, standard/mini/micro lots, and pip value.",
-};
+  path: "/tools/lot-size-calculator",
+});
 
 export default function LotSizeCalculatorPage() {
   return (
