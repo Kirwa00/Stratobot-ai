@@ -17,6 +17,7 @@ const GUIDES = [
   { href: "/backtesting", title: "Does StratoBot backtest?", body: "The honest answer, and where MT5's Strategy Tester fits in." },
   { href: "/tradingview-to-mt5", title: "Moving a TradingView strategy to MT5", body: "What actually works, honestly." },
   { href: "/compare/ea-generator", title: "Choosing an EA generator", body: "Questions worth asking any of them." },
+  { href: "/prop-firms", title: "Prop firm comparison", body: "What to check before paying for a challenge." },
 ];
 
 const CALCULATORS_HREF = "/tools";
@@ -74,7 +75,7 @@ export default function ResourcesPage() {
             className="rounded-lg border border-outline bg-slate px-4 py-3 flex items-center justify-between hover:border-signal/50 transition-colors"
           >
             <div>
-              <p className="text-sm font-semibold text-chalk mb-0.5">All 10 trading calculators</p>
+              <p className="text-sm font-semibold text-chalk mb-0.5">All 11 trading calculators</p>
               <p className="text-xs text-chalk/60">Position size, drawdown, risk of ruin, and more.</p>
             </div>
             <span className="material-symbols-outlined text-signal">arrow_forward</span>

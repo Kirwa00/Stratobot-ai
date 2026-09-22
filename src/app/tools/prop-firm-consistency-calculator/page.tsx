@@ -33,6 +33,10 @@ export default function PropFirmConsistencyCalculatorPage() {
           <Link href="/tools/prop-firm-calculator" className="text-secondary hover:underline">
             Prop firm % rules in dollars
           </Link>
+          {" "}·{" "}
+          <Link href="/prop-firms" className="text-secondary hover:underline">
+            Compare prop firms
+          </Link>
         </p>
 
         <CtaBanner />

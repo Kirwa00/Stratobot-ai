@@ -34,6 +34,11 @@ const ARTICLES = [
     title: "Common Mistakes When Automating a Strategy",
     body: "The gaps that turn a good manual strategy into a broken EA.",
   },
+  {
+    href: "/learn/how-to-backtest-a-trading-strategy",
+    title: "How to Backtest a Trading Strategy",
+    body: "The real methods — chart replay, MetaTrader's Strategy Tester, dedicated engines — and what backtesting can't tell you.",
+  },
 ];
 
 export default function LearnPage() {

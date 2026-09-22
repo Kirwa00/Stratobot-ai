@@ -33,6 +33,10 @@ export default function TradingCostCalculatorPage() {
           <Link href="/tools/forex-profit-calculator" className="text-secondary hover:underline">
             Calculate a trade&apos;s raw P/L
           </Link>
+          {" "}·{" "}
+          <Link href="/vps" className="text-secondary hover:underline">
+            VPS costs compared
+          </Link>
         </p>
 
         <CtaBanner />

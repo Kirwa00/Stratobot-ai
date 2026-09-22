@@ -67,6 +67,12 @@ export default function BacktestingPage() {
           </Link>{" "}
           · <Link href="/performance" className="text-secondary hover:underline">
             How to evaluate EA performance
+          </Link>{" "}
+          · <Link
+            href="/learn/how-to-backtest-a-trading-strategy"
+            className="text-secondary hover:underline"
+          >
+            How to actually backtest one
           </Link>
         </p>
 

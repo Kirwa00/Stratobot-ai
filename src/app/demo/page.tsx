@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { buildMetadata } from "@/lib/seo";
@@ -92,6 +93,13 @@ export default function DemoPage() {
             will be profitable.
           </p>
         </div>
+
+        <p className="text-sm text-chalk/70 text-center">
+          Downloaded EA needs MT5 running around the clock?{" "}
+          <Link href="/vps" className="text-secondary hover:underline">
+            Compare VPS providers
+          </Link>
+        </p>
 
         <CtaBanner
           title="Try it with your own strategy"

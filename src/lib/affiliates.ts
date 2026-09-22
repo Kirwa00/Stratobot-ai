@@ -30,6 +30,51 @@ export const AFFILIATE_OFFERS: Record<string, AffiliateOffer> = {
   },
 };
 
+export interface PropFirmPartner {
+  id: string;
+  name: string;
+  note: string;
+  /** Plain homepage link for now — swap for the approved affiliate link once available. */
+  href: string;
+}
+
+// Plain (non-affiliate) homepage links to real, well-known forex prop firms —
+// placeholders for real affiliate links once each program is approved. Notes
+// are deliberately qualitative: challenge fees, profit splits, and rules
+// change often and vary by account size, so we don't quote numbers here.
+export const PROP_FIRM_PARTNERS: PropFirmPartner[] = [
+  {
+    id: "ftmo",
+    name: "FTMO",
+    note: "One of the largest, longest-running prop firms — a two-step evaluation model most others are compared against.",
+    href: "https://ftmo.com",
+  },
+  {
+    id: "fundednext",
+    name: "FundedNext",
+    note: "Several account types including instant-funding options, popular with retail forex traders.",
+    href: "https://fundednext.com",
+  },
+  {
+    id: "the5ers",
+    name: "The5ers",
+    note: "Forex-focused since early in the prop-firm space, known for scaling funded accounts over time.",
+    href: "https://the5ers.com",
+  },
+  {
+    id: "fundingpips",
+    name: "Funding Pips",
+    note: "Newer entrant with a large base of funded traders and multiple challenge formats.",
+    href: "https://fundingpips.com",
+  },
+  {
+    id: "e8markets",
+    name: "E8 Markets",
+    note: "Multiple funding tracks across forex and other instruments, with flexible scaling plans.",
+    href: "https://e8markets.com",
+  },
+];
+
 export interface VpsProvider {
   id: string;
   name: string;

@@ -40,6 +40,10 @@ export default function PropFirmCalculatorPage() {
           >
             Check the consistency rule
           </Link>
+          {" "}·{" "}
+          <Link href="/prop-firms" className="text-secondary hover:underline">
+            Compare prop firms
+          </Link>
         </p>
 
         <CtaBanner />
