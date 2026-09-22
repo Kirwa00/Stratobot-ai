@@ -52,6 +52,12 @@ const CALCULATORS = [
     body: "Turn a prop firm challenge's % rules into real dollar targets.",
   },
   {
+    href: "/tools/prop-firm-consistency-calculator",
+    icon: "balance",
+    title: "Prop Firm Consistency Calculator",
+    body: "Check whether one trading day breaks a firm's consistency rule.",
+  },
+  {
     href: "/tools/risk-of-ruin-calculator",
     icon: "warning",
     title: "Risk of Ruin Calculator",

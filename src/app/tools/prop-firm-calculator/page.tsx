@@ -33,6 +33,13 @@ export default function PropFirmCalculatorPage() {
           <Link href="/tools/drawdown-calculator" className="text-secondary hover:underline">
             Check a drawdown against these limits
           </Link>
+          {" "}·{" "}
+          <Link
+            href="/tools/prop-firm-consistency-calculator"
+            className="text-secondary hover:underline"
+          >
+            Check the consistency rule
+          </Link>
         </p>
 
         <CtaBanner />

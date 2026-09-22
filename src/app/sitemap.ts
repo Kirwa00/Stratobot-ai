@@ -30,6 +30,7 @@ const PATHS = [
   "/tools/forex-profit-calculator",
   "/tools/compound-trading-calculator",
   "/tools/prop-firm-calculator",
+  "/tools/prop-firm-consistency-calculator",
   "/tools/risk-of-ruin-calculator",
   "/tools/ea-profit-calculator",
   "/tools/trading-cost-calculator",
