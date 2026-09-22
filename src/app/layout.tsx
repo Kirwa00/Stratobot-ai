@@ -30,7 +30,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://stratobot.trade"),
+  metadataBase: new URL("https://www.stratobot.trade"),
   title: "StratoBot AI",
   description: "Turn your trading strategy into an Expert Advisor without hiring a programmer.",
   manifest: "/manifest.json",

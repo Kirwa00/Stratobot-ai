@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-export const SITE_URL = "https://stratobot.trade";
+// Vercel's domain config redirects the apex (stratobot.trade) to www with a
+// 308 — www is the host that actually serves 200, so canonical/OG/sitemap
+// URLs must point there, not at the apex that redirects away from itself.
+export const SITE_URL = "https://www.stratobot.trade";
 const SITE_NAME = "StratoBot AI";
 
 /**
