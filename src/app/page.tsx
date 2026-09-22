@@ -7,7 +7,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "StratoBot AI — Turn Your Trading Strategy Into an EA",
-  description: "Describe your trading strategy in plain language. StratoBot builds a real MetaTrader 5 Expert Advisor — no MQL4/MQL5 programming, no hiring a programmer.",
+  description: "Describe your trading strategy in plain language. StratoBot builds a real MetaTrader 5 Expert Advisor — no MQL4/MQL5 programming, no hiring a programmer. Built for Kenyan traders, pay via M-Pesa.",
   path: "/",
 });
 
@@ -55,6 +55,9 @@ export default function LandingPage() {
           <Link href="/app">
             <Button className="w-full">Describe your strategy — free</Button>
           </Link>
+          <p className="text-xs text-chalk/50 mt-2 text-center">
+            Built for Kenyan traders — priced in KES, pay with M-Pesa.
+          </p>
         </div>
 
         {/* Problem */}
@@ -167,6 +170,9 @@ export default function LandingPage() {
             <Link href="/pricing" className="text-secondary hover:underline">
               See full pricing →
             </Link>
+          </p>
+          <p className="text-xs text-chalk/50 mt-2">
+            Built for Kenyan traders — priced in KES, pay with M-Pesa or Airtel Money.
           </p>
         </div>
 

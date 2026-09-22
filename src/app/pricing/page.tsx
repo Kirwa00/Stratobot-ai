@@ -6,7 +6,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Pricing — StratoBot AI",
-  description: `Free logic checks, or ${PRO_DAYS} days of unlimited strategies and downloads for KES ${PRICE_KES.toLocaleString("en-KE")}.`,
+  description: `Free logic checks, or ${PRO_DAYS} days of unlimited strategies and downloads for KES ${PRICE_KES.toLocaleString("en-KE")}. Built for Kenyan traders, pay via M-Pesa.`,
   path: "/pricing",
 });
 
@@ -70,6 +70,9 @@ export default function PricingPage() {
               </li>
             ))}
           </ul>
+          <p className="text-xs text-chalk/50 mt-3 pt-3 border-t border-outline">
+            Priced in KES for Kenyan traders — pay with M-Pesa or Airtel Money.
+          </p>
         </div>
 
         <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
