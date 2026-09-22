@@ -3,11 +3,13 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
 import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "StratoBot AI — Turn Your Trading Strategy Into an EA",
   description: "Describe your trading strategy in plain language. StratoBot builds a real MetaTrader 5 Expert Advisor — no MQL4/MQL5 programming, no hiring a programmer.",
-};
+  path: "/",
+});
 
 const OLD_WAY_STEPS = [
   "Write a technical spec",

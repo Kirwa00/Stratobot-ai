@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildMetadata({
   title: "Pricing — StratoBot AI",
   description: `Free logic checks, or ${PRO_DAYS} days of unlimited strategies and downloads for KES ${PRICE_KES.toLocaleString("en-KE")}.`,
-};
+  path: "/pricing",
+});
 
 export default function PricingPage() {
   return (
