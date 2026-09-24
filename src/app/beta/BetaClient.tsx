@@ -4,8 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
-
-const TO_EMAIL = "emmanuelkirwa8@gmail.com";
+import { BETA_CODE } from "@/lib/constants";
 
 const EXAMPLES = [
   "London killzone, sweep PDH, enter on 50% retrace, trail stop 30 pips",
@@ -48,20 +47,11 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { name: "", email: "", experience: "", style: "", notes: "" };
 
-function buildBody(data: FormState): string {
-  return [
-    `Name: ${data.name}`,
-    `Email: ${data.email}`,
-    `MT5/EA experience: ${data.experience}`,
-    `Trading style: ${data.style || "(not given)"}`,
-    `Notes: ${data.notes || "(none)"}`,
-  ].join("\n");
-}
-
 export function BetaClient() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitted, setSubmitted] = useState(false);
-  const [copyLabel, setCopyLabel] = useState("Copy my details instead");
+  const [submitting, setSubmitting] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
 
   const canSubmit = Boolean(form.name.trim() && form.email.trim() && form.experience);
 
@@ -69,23 +59,24 @@ export function BetaClient() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!canSubmit) return;
-    const subject = `StratoBot beta signup — ${form.name}`;
-    const body = buildBody(form);
-    window.location.href = `mailto:${encodeURIComponent(TO_EMAIL)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setSubmitted(true);
-  }
-
-  async function handleCopy() {
-    if (!canSubmit) return;
-    const text = `To: ${TO_EMAIL}\nSubject: StratoBot beta signup — ${form.name}\n\n${buildBody(form)}`;
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setSendFailed(false);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopyLabel("Copied — paste into an email");
+      const res = await fetch("/api/beta-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error("send failed");
+      setSubmitted(true);
     } catch {
-      setCopyLabel("Could not copy — select and copy manually");
+      setSendFailed(true);
+      setSubmitted(true);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -138,12 +129,31 @@ export function BetaClient() {
 
         {submitted ? (
           <div className="rounded-lg border border-outline bg-slate px-4 py-6 text-center">
-            <span className="material-symbols-outlined text-buy text-3xl">check_circle</span>
-            <h2 className="font-display font-bold text-lg text-chalk mt-2 mb-1.5">Almost there</h2>
-            <p className="text-sm text-chalk/70 max-w-sm mx-auto">
-              Your email app should be open with your details filled in for {TO_EMAIL} — just hit
-              send. We&apos;ll reply with your beta redeem code.
-            </p>
+            <span
+              className={`material-symbols-outlined text-3xl ${sendFailed ? "text-caution" : "text-buy"}`}
+            >
+              {sendFailed ? "error" : "check_circle"}
+            </span>
+            <h2 className="font-display font-bold text-lg text-chalk mt-2 mb-1.5">
+              {sendFailed ? "Sent, but the email failed" : "You're in"}
+            </h2>
+            {sendFailed ? (
+              <div className="text-sm text-chalk/70 max-w-sm mx-auto">
+                <p className="mb-3">
+                  We couldn&apos;t email your code to {form.email || "your address"} — here it is
+                  directly:
+                </p>
+                <p className="font-mono text-lg font-bold text-chalk tracking-wider mb-3">
+                  {BETA_CODE}
+                </p>
+                <p>Enter it on the Unlock screen after running a free logic check.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-chalk/70 max-w-sm mx-auto">
+                Check {form.email || "your inbox"} for your beta access code, then enter it on the
+                Unlock screen after running a free logic check.
+              </p>
+            )}
           </div>
         ) : (
           <form
@@ -236,14 +246,11 @@ export function BetaClient() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={!canSubmit}>
-              Sign up to test StratoBot
+            <Button type="submit" className="w-full" disabled={!canSubmit || submitting}>
+              {submitting ? "Sending your code…" : "Sign up to test StratoBot"}
             </Button>
             <p className="text-xs text-chalk/50 text-center">
-              Opens your email app addressed to the StratoBot team. Email not set up?{" "}
-              <button type="button" onClick={handleCopy} className="text-secondary hover:underline">
-                {copyLabel}
-              </button>
+              We&apos;ll email your beta access code straight away — no waiting on a reply.
             </p>
           </form>
         )}
