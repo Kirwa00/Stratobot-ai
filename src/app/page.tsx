@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
+import { Footer } from "@/components/Footer";
 import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
@@ -159,14 +160,31 @@ export default function LandingPage() {
         </div>
 
         {/* Pricing */}
-        <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
+        <div>
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
             Pricing
           </p>
-          <p className="text-sm text-chalk/85 leading-relaxed">
-            Free to describe your strategy and run {FREE_SIMS} logic checks. KES{" "}
-            {PRICE_KES.toLocaleString("en-KE")} unlocks unlimited strategies and downloads for{" "}
-            {PRO_DAYS} days.{" "}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-outline bg-slate px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-chalk/50 mb-2">
+                Free
+              </p>
+              <p className="font-display font-bold text-2xl text-chalk mono-num mb-2">KES 0</p>
+              <p className="text-xs text-chalk/70 leading-relaxed">
+                Describe your strategy, run {FREE_SIMS} logic checks. No account needed.
+              </p>
+            </div>
+            <div className="rounded-lg border border-signal/40 bg-slate px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-signal mb-2">Pro</p>
+              <p className="font-display font-bold text-2xl text-chalk mono-num mb-2">
+                KES {PRICE_KES.toLocaleString("en-KE")}
+              </p>
+              <p className="text-xs text-chalk/70 leading-relaxed">
+                Unlimited strategies and downloads for {PRO_DAYS} days.
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-chalk/70 mt-3">
             <Link href="/pricing" className="text-secondary hover:underline">
               See full pricing →
             </Link>
@@ -190,6 +208,8 @@ export default function LandingPage() {
         </div>
 
         <CtaBanner />
+
+        <Footer />
       </main>
     </div>
   );

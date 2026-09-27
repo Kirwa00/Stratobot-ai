@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 
-const HIGH_PRIORITY_PATHS = ["/"];
-
-const SECTION_INDEX_PATHS = ["/tools", "/learn", "/blog", "/resources"];
-
+// No lastModified/priority/changeFrequency: Google's own docs say it ignores
+// priority and changefreq, and a lastModified that just tracks build/request
+// time (rather than a real per-page edit date, which this app doesn't track)
+// is worse than omitting it — a constantly-churning date looks synthetic.
 const PATHS = [
   "/",
   "/app",
@@ -60,17 +60,5 @@ const PATHS = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-  return PATHS.map((path) => ({
-    url: `${SITE_URL}${path}`,
-    lastModified: now,
-    changeFrequency: HIGH_PRIORITY_PATHS.includes(path)
-      ? ("weekly" as const)
-      : ("monthly" as const),
-    priority: HIGH_PRIORITY_PATHS.includes(path)
-      ? 1
-      : SECTION_INDEX_PATHS.includes(path)
-        ? 0.7
-        : 0.5,
-  }));
+  return PATHS.map((path) => ({ url: `${SITE_URL}${path}` }));
 }
