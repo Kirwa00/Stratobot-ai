@@ -88,7 +88,20 @@ function resample(candles: Candle[], tf: Timeframe): Candle[] {
   return out;
 }
 
-const SESSION_HOURS: Record<Session, (hour: number) => boolean> = {
+function fieldOf(c: Candle, field: Field): number {
+  switch (field) {
+    case "median":
+      return (c.high + c.low) / 2;
+    case "typical":
+      return (c.high + c.low + c.close) / 3;
+    case "weighted":
+      return (c.high + c.low + 2 * c.close) / 4;
+    default:
+      return c[field];
+  }
+}
+
+export const SESSION_HOURS: Record<Session, (hour: number) => boolean> = {
   london: (h) => h >= 8 && h < 17,
   new_york: (h) => h >= 13 && h < 22,
   asia: (h) => h >= 23 || h < 8,
@@ -176,26 +189,52 @@ export class Interpreter {
   }
 
   private fieldArray(tf: Timeframe | undefined, field: Field): number[] {
-    return this.cached(`field|${tf}|${field}`, () => this.series(tf).map((c) => c[field]));
+    return this.cached(`field|${tf}|${field}`, () => this.series(tf).map((c) => fieldOf(c, field)));
+  }
+
+  private gmtOf(serverTime: number): Date {
+    return new Date((serverTime - this.opts.serverGmtOffsetHours * 3600) * 1000);
   }
 
   private indicatorArray(v: Value): number[] {
     const tf = "tf" in v ? v.tf : undefined;
     const close = () => this.fieldArray(tf, "close");
+    const high = () => this.fieldArray(tf, "high");
+    const low = () => this.fieldArray(tf, "low");
+    const maOf = (method: "sma" | "ema" | "smma" | "lwma", src: number[], period: number) =>
+      ({ sma: ind.sma, ema: ind.ema, smma: ind.smma, lwma: ind.lwma })[method](src, period);
     return this.cached(stableKey({ ...v, shift: undefined }), () => {
       switch (v.kind) {
-        case "ma": {
-          const src = this.fieldArray(tf, v.field ?? "close");
-          return { sma: ind.sma, ema: ind.ema, smma: ind.smma, lwma: ind.lwma }[v.method](src, v.period);
-        }
+        case "ma":
+          return maOf(v.method, this.fieldArray(tf, v.field ?? "close"), v.period);
         case "rsi":
           return ind.rsi(close(), v.period);
         case "atr":
-          return ind.atr(this.fieldArray(tf, "high"), this.fieldArray(tf, "low"), close(), v.period);
+          return ind.atr(high(), low(), close(), v.period);
         case "macd":
           return ind.macd(close(), v.fast, v.slow, v.signal)[v.line];
         case "bands":
           return ind.bands(close(), v.period, v.deviation)[v.line];
+        case "stochastic":
+          return ind.stochastic(high(), low(), close(), v.k, v.d, v.slowing)[v.line];
+        case "cci":
+          return ind.cci(this.fieldArray(tf, v.field ?? "typical"), v.period);
+        case "adx":
+          return ind.adx(high(), low(), close(), v.period)[v.line];
+        case "sar":
+          return ind.sar(high(), low(), v.step, v.max);
+        case "momentum":
+          return ind.momentum(this.fieldArray(tf, v.field ?? "close"), v.period);
+        case "wpr":
+          return ind.wpr(high(), low(), close(), v.period);
+        case "envelopes": {
+          const factor = v.line === "upper" ? 1 + v.deviation / 100 : 1 - v.deviation / 100;
+          return maOf(v.method, this.fieldArray(tf, v.field ?? "close"), v.period).map((m) => m * factor);
+        }
+        case "stddev":
+          return ind.stddev(this.fieldArray(tf, v.field ?? "close"), v.period);
+        case "demarker":
+          return ind.demarker(high(), low(), v.period);
         default:
           throw new Error(`not an indicator: ${v.kind}`);
       }
@@ -220,7 +259,46 @@ export class Interpreter {
         return this.vwap(this.closedIndex(undefined, t, k, v.shift ?? 0));
       case "price": {
         const i = this.closedIndex(v.tf, t, k, v.shift ?? 0);
-        return i < 0 ? NaN : this.series(v.tf)[i][v.field];
+        return i < 0 ? NaN : fieldOf(this.series(v.tf)[i], v.field);
+      }
+      case "candle": {
+        const i = this.closedIndex(v.tf, t, k, v.shift ?? 0);
+        if (i < 0) return NaN;
+        const c = this.series(v.tf)[i];
+        if (v.measure === "body") return Math.abs(c.close - c.open);
+        if (v.measure === "range") return c.high - c.low;
+        if (v.measure === "upper_wick") return c.high - Math.max(c.open, c.close);
+        return Math.min(c.open, c.close) - c.low;
+      }
+      case "swing": {
+        // Newest-first p = shift + strength .. shift + lookback, i.e. oldest-first i - strength down to i - lookback.
+        const i = this.closedIndex(v.tf, t, k, v.shift ?? 0);
+        if (i < 0) return NaN;
+        const bars = this.series(v.tf);
+        const px = (j: number) => (v.side === "high" ? bars[j].high : bars[j].low);
+        const beats = (a: number, b: number) => (v.side === "high" ? gt(a, b) : lt(a, b));
+        for (let p = i - v.strength; p >= i - v.lookback; p--) {
+          if (p - v.strength < 0) return NaN;
+          let pivot = true;
+          for (let j = 1; j <= v.strength && pivot; j++) pivot = beats(px(p), px(p - j)) && beats(px(p), px(p + j));
+          if (pivot) return px(p);
+        }
+        return NaN;
+      }
+      case "session_range": {
+        const i = this.closedIndex(undefined, t, k, v.shift ?? 0);
+        if (i < 0) return NaN;
+        const inSession = SESSION_HOURS[v.session];
+        let found = false;
+        let best = v.side === "high" ? -Infinity : Infinity;
+        for (let j = i; j >= 0 && j > i - 1000; j--) {
+          const c = this.candles[j];
+          if (inSession(this.gmtOf(c.time).getUTCHours())) {
+            found = true;
+            best = v.side === "high" ? Math.max(best, c.high) : Math.min(best, c.low);
+          } else if (found) break;
+        }
+        return found ? best : NaN;
       }
       case "highest":
       case "lowest": {
@@ -276,12 +354,18 @@ export class Interpreter {
         const b = this.value(c.b, t, k);
         return valid(a, b) && lt(Math.abs(a - b), c.pips * this.opts.pip);
       }
-      case "session": {
+      case "session":
+      case "time_window":
+      case "weekday": {
         const T = this.decisionTime(t, k);
         if (Number.isNaN(T)) return false;
-        const gmt = T - this.opts.serverGmtOffsetHours * 3600;
-        const hour = Math.floor((((gmt % 86400) + 86400) % 86400) / 3600);
-        return SESSION_HOURS[c.name](hour);
+        const gmt = this.gmtOf(T);
+        const hour = gmt.getUTCHours();
+        if (c.kind === "session") return SESSION_HOURS[c.name](hour);
+        if (c.kind === "weekday") return c.days.includes(gmt.getUTCDay());
+        return c.fromHour <= c.toHour
+          ? hour >= c.fromHour && hour < c.toHour
+          : hour >= c.fromHour || hour < c.toHour;
       }
       case "all":
         return c.of.every((x) => this.condition(x, t, k));
@@ -327,6 +411,37 @@ export class Interpreter {
         if (!oldest) return false;
         const min = c.minPips * this.opts.pip;
         return c.side === "bullish" ? gte(cur.low - oldest.high, min) : gte(oldest.low - cur.high, min);
+      }
+      case "inside_bar":
+      case "outside_bar": {
+        const prev = bar(i - 1);
+        if (!prev) return false;
+        return c.pattern === "inside_bar"
+          ? lt(cur.high, prev.high) && gt(cur.low, prev.low)
+          : gt(cur.high, prev.high) && lt(cur.low, prev.low);
+      }
+      case "doji": {
+        const range = cur.high - cur.low;
+        return gt(range, 0) && lte(body(cur), range * 0.1);
+      }
+      case "three_in_row": {
+        const b1 = bar(i - 1);
+        const b2 = bar(i - 2);
+        if (!b1 || !b2) return false;
+        const dirOk = (x: Candle) => (c.side === "bullish" ? gt(x.close, x.open) : lt(x.close, x.open));
+        const beyond = (a: number, b: number) => (c.side === "bullish" ? gt(a, b) : lt(a, b));
+        return dirOk(cur) && dirOk(b1) && dirOk(b2) && beyond(cur.close, b1.close) && beyond(b1.close, b2.close);
+      }
+      case "star": {
+        // Oldest candle: large body against the new direction; middle: small body; newest: closes past the oldest's midpoint.
+        const mid = bar(i - 1);
+        const first = bar(i - 2);
+        if (!mid || !first) return false;
+        const smallMiddle = lt(body(mid), body(first) * 0.3);
+        const midpoint = (first.open + first.close) / 2;
+        return c.side === "bullish"
+          ? lt(first.close, first.open) && smallMiddle && gt(cur.close, cur.open) && gt(cur.close, midpoint)
+          : gt(first.close, first.open) && smallMiddle && lt(cur.close, cur.open) && lt(cur.close, midpoint);
       }
       case "order_block": {
         for (let j = i - 1; j >= i - c.lookback; j--) {

@@ -1,3 +1,4 @@
+import { SAR_WINDOW } from "./indicators";
 import { buildNodeTable, stableKey } from "./nodes";
 import type { Condition, RuleStrategy, Session, Timeframe, Value } from "./types";
 
@@ -23,8 +24,38 @@ const SESSION_TEST: Record<Session, string> = {
 };
 
 const MA_METHOD = { sma: "MODE_SMA", ema: "MODE_EMA", smma: "MODE_SMMA", lwma: "MODE_LWMA" } as const;
-const APPLIED = { open: "PRICE_OPEN", high: "PRICE_HIGH", low: "PRICE_LOW", close: "PRICE_CLOSE" } as const;
-const SERIES_FN = { open: "iOpen", high: "iHigh", low: "iLow", close: "iClose" } as const;
+const APPLIED = {
+  open: "PRICE_OPEN",
+  high: "PRICE_HIGH",
+  low: "PRICE_LOW",
+  close: "PRICE_CLOSE",
+  median: "PRICE_MEDIAN",
+  typical: "PRICE_TYPICAL",
+  weighted: "PRICE_WEIGHTED",
+} as const;
+/** Field codes understood by StratoPrice() in the emitted scaffold. */
+const FIELD_CODE = { open: 0, high: 1, low: 2, close: 3, median: 4, typical: 5, weighted: 6 } as const;
+const SESSION_CODE: Record<Session, number> = { london: 0, new_york: 1, asia: 2, london_ny_overlap: 3 };
+
+type IndicatorValue = Extract<
+  Value,
+  {
+    kind:
+      | "ma"
+      | "rsi"
+      | "atr"
+      | "macd"
+      | "bands"
+      | "stochastic"
+      | "cci"
+      | "adx"
+      | "momentum"
+      | "wpr"
+      | "envelopes"
+      | "stddev"
+      | "demarker";
+  }
+>;
 
 function tfExpr(tf: Timeframe | undefined): string {
   return tf ? `PERIOD_${tf}` : "InpTimeframe";
@@ -49,7 +80,7 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
 
   // One indicator handle (and one set of inputs) per distinct indicator config,
   // shared by every node that reads it at any shift or line.
-  function handle(v: Extract<Value, { kind: "ma" | "rsi" | "atr" | "macd" | "bands" }>): string {
+  function handle(v: IndicatorValue): string {
     const key = stableKey({ ...v, shift: undefined, line: undefined });
     const existing = handleIds.get(key);
     if (existing !== undefined) return `H${existing}`;
@@ -86,6 +117,49 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
         init = `iBands(_Symbol, ${tf}, ${p}, 0, ${d}, PRICE_CLOSE)`;
         break;
       }
+      case "stochastic": {
+        const kp = input("int", `Stoch${n}_K`, v.k, `Stochastic %K period${tfLabel(v.tf)}`);
+        const dp = input("int", `Stoch${n}_D`, v.d, `Stochastic %D period${tfLabel(v.tf)}`);
+        const sl = input("int", `Stoch${n}_Slowing`, v.slowing, `Stochastic slowing${tfLabel(v.tf)}`);
+        init = `iStochastic(_Symbol, ${tf}, ${kp}, ${dp}, ${sl}, MODE_SMA, STO_LOWHIGH)`;
+        break;
+      }
+      case "cci": {
+        const p = input("int", `Cci${n}_Period`, v.period, `CCI period${tfLabel(v.tf)}`);
+        init = `iCCI(_Symbol, ${tf}, ${p}, ${APPLIED[v.field ?? "typical"]})`;
+        break;
+      }
+      case "adx": {
+        const p = input("int", `Adx${n}_Period`, v.period, `ADX period${tfLabel(v.tf)}`);
+        init = `iADX(_Symbol, ${tf}, ${p})`;
+        break;
+      }
+      case "momentum": {
+        const p = input("int", `Mom${n}_Period`, v.period, `Momentum period${tfLabel(v.tf)}`);
+        init = `iMomentum(_Symbol, ${tf}, ${p}, ${APPLIED[v.field ?? "close"]})`;
+        break;
+      }
+      case "wpr": {
+        const p = input("int", `Wpr${n}_Period`, v.period, `Williams %R period${tfLabel(v.tf)}`);
+        init = `iWPR(_Symbol, ${tf}, ${p})`;
+        break;
+      }
+      case "envelopes": {
+        const p = input("int", `Env${n}_Period`, v.period, `Envelopes MA period${tfLabel(v.tf)}`);
+        const d = input("double", `Env${n}_Deviation`, v.deviation, `Envelopes deviation %${tfLabel(v.tf)}`);
+        init = `iEnvelopes(_Symbol, ${tf}, ${p}, 0, ${MA_METHOD[v.method]}, ${APPLIED[v.field ?? "close"]}, ${d})`;
+        break;
+      }
+      case "stddev": {
+        const p = input("int", `StdDev${n}_Period`, v.period, `Standard deviation period${tfLabel(v.tf)}`);
+        init = `iStdDev(_Symbol, ${tf}, ${p}, 0, MODE_SMA, ${APPLIED[v.field ?? "close"]})`;
+        break;
+      }
+      case "demarker": {
+        const p = input("int", `DeM${n}_Period`, v.period, `DeMarker period${tfLabel(v.tf)}`);
+        init = `iDeMarker(_Symbol, ${tf}, ${p})`;
+        break;
+      }
     }
     handleInits.push(`   H${n} = ${init};\n   if (H${n} == INVALID_HANDLE) return(INIT_FAILED);`);
     return `H${n}`;
@@ -96,6 +170,9 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
   const bufferOf = (v: Value): number => {
     if (v.kind === "macd") return v.line === "main" ? 0 : 1;
     if (v.kind === "bands") return { middle: 0, upper: 1, lower: 2 }[v.line];
+    if (v.kind === "stochastic") return v.line === "main" ? 0 : 1;
+    if (v.kind === "adx") return { adx: 0, plus_di: 1, minus_di: 2 }[v.line];
+    if (v.kind === "envelopes") return v.line === "upper" ? 0 : 1;
     return 0;
   };
 
@@ -121,9 +198,53 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
         break;
       case "price":
         body = `int i = StratoIdx(${tfExpr(v.tf)}, k);
+   return i < 0 ? EMPTY_VALUE : StratoPrice(${tfExpr(v.tf)}, i + ${v.shift ?? 0}, ${FIELD_CODE[v.field]});`;
+        break;
+      case "candle": {
+        const expr = {
+          body: "MathAbs(c - o)",
+          range: "h - l",
+          upper_wick: "h - MathMax(o, c)",
+          lower_wick: "MathMin(o, c) - l",
+        }[v.measure];
+        body = `int i = StratoIdx(${tfExpr(v.tf)}, k);
    if (i < 0) return EMPTY_VALUE;
-   double p = ${SERIES_FN[v.field]}(_Symbol, ${tfExpr(v.tf)}, i + ${v.shift ?? 0});
-   return p > 0 ? p : EMPTY_VALUE;`;
+   i += ${v.shift ?? 0};
+   double o = iOpen(_Symbol, ${tfExpr(v.tf)}, i), h = iHigh(_Symbol, ${tfExpr(v.tf)}, i);
+   double l = iLow(_Symbol, ${tfExpr(v.tf)}, i), c = iClose(_Symbol, ${tfExpr(v.tf)}, i);
+   if (o <= 0) return EMPTY_VALUE;
+   return ${expr};`;
+        break;
+      }
+      case "swing": {
+        const strength = input("int", `Swing${id}_Strength`, v.strength, `Swing ${v.side}: bars on each side${tfLabel(v.tf)}`);
+        const lookback = input("int", `Swing${id}_Lookback`, v.lookback, `Swing ${v.side}: search this many bars back${tfLabel(v.tf)}`);
+        const read = v.side === "high" ? "iHigh" : "iLow";
+        const beats = v.side === "high" ? "StratoGt" : "StratoLt";
+        body = `int i = StratoIdx(${tfExpr(v.tf)}, k);
+   if (i < 0) return EMPTY_VALUE;
+   i += ${v.shift ?? 0};
+   for (int p = i + ${strength}; p <= i + ${lookback}; p++) {
+      double pivot = ${read}(_Symbol, ${tfExpr(v.tf)}, p);
+      if (pivot <= 0 || ${read}(_Symbol, ${tfExpr(v.tf)}, p + ${strength}) <= 0) return EMPTY_VALUE;
+      bool ok = true;
+      for (int j = 1; j <= ${strength} && ok; j++)
+         ok = ${beats}(pivot, ${read}(_Symbol, ${tfExpr(v.tf)}, p + j)) && ${beats}(pivot, ${read}(_Symbol, ${tfExpr(v.tf)}, p - j));
+      if (ok) return pivot;
+   }
+   return EMPTY_VALUE;`;
+        break;
+      }
+      case "sar": {
+        const st = input("double", `Sar${id}_Step`, v.step, `Parabolic SAR step${tfLabel(v.tf)}`);
+        const mx = input("double", `Sar${id}_Max`, v.max, `Parabolic SAR maximum${tfLabel(v.tf)}`);
+        body = `int i = StratoIdx(${tfExpr(v.tf)}, k);
+   return i < 0 ? EMPTY_VALUE : StratoSAR(${tfExpr(v.tf)}, i + ${v.shift ?? 0}, ${st}, ${mx});`;
+        break;
+      }
+      case "session_range":
+        body = `int i = StratoIdx(InpTimeframe, k);
+   return i < 0 ? EMPTY_VALUE : StratoSessionRange(${SESSION_CODE[v.session]}, ${v.side === "high" ? "true" : "false"}, i + ${v.shift ?? 0});`;
         break;
       case "highest":
       case "lowest": {
@@ -172,6 +293,22 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
    if (t == 0) return false;
    int h = StratoGmtHour(t);
    return ${SESSION_TEST[c.name]};`;
+        break;
+      case "time_window": {
+        const from = input("int", `Hours${id}_From`, c.fromHour, "Trading window start, GMT hour (0-23)");
+        const to = input("int", `Hours${id}_To`, c.toHour, "Trading window end, GMT hour (exclusive)");
+        body = `datetime t = iTime(_Symbol, InpTimeframe, k);
+   if (t == 0) return false;
+   int h = StratoGmtHour(t);
+   return ${from} <= ${to} ? (h >= ${from} && h < ${to}) : (h >= ${from} || h < ${to});`;
+        break;
+      }
+      case "weekday":
+        body = `datetime t = iTime(_Symbol, InpTimeframe, k);
+   if (t == 0) return false;
+   MqlDateTime s;
+   TimeToStruct(t - StratoGmtOffset() * 3600, s);
+   return ${c.days.length ? c.days.map((d) => `s.day_of_week == ${d}`).join(" || ") : "false"};`;
         break;
       case "all":
         body = `return ${c.of.map((x) => `${C(x)}(k)`).join(" && ") || "true"};`;
@@ -289,6 +426,99 @@ int StratoGmtHour(datetime serverTime) {
    MqlDateTime s;
    TimeToStruct(serverTime - StratoGmtOffset() * 3600, s);
    return s.hour;
+}
+
+// Field codes: 0 open, 1 high, 2 low, 3 close, 4 median (H+L)/2, 5 typical (H+L+C)/3, 6 weighted (H+L+2C)/4.
+double StratoPrice(ENUM_TIMEFRAMES tf, int i, int field) {
+   double o = iOpen(_Symbol, tf, i), h = iHigh(_Symbol, tf, i), l = iLow(_Symbol, tf, i), c = iClose(_Symbol, tf, i);
+   if (o <= 0) return EMPTY_VALUE;
+   switch (field) {
+      case 0: return o;
+      case 1: return h;
+      case 2: return l;
+      case 3: return c;
+      case 4: return (h + l) / 2;
+      case 5: return (h + l + c) / 3;
+      default: return (h + l + 2 * c) / 4;
+   }
+}
+
+// Parabolic SAR of closed bar idx, computed from the ${SAR_WINDOW} closed bars ending there.
+// Deliberately not iSAR: the built-in re-runs its state machine on every tick of
+// the forming bar, so its values depend on the intrabar tick path.
+double StratoSAR(ENUM_TIMEFRAMES tf, int idx, double step, double maximum) {
+   const int W = ${SAR_WINDOW};
+   double hi[], lo[];
+   if (idx < 0 || CopyHigh(_Symbol, tf, idx, W, hi) != W || CopyLow(_Symbol, tf, idx, W, lo) != W) return EMPTY_VALUE;
+   double sar[], af[], ep[];
+   ArrayResize(sar, W);
+   ArrayResize(af, W);
+   ArrayResize(ep, W);
+   ArrayInitialize(sar, EMPTY_VALUE);
+   ArrayInitialize(af, 0);
+   ArrayInitialize(ep, 0);
+   bool isLong = false;
+   int lastRev = 0;
+   sar[0] = hi[0];
+   af[0] = step;
+   ep[0] = lo[0];
+   for (int i = 1; i < W; i++) {
+      if (sar[i] == EMPTY_VALUE) sar[i] = sar[i - 1];
+      if (isLong && sar[i] > lo[i]) {
+         isLong = false;
+         sar[i] = hi[ArrayMaximum(hi, lastRev, i - lastRev)];
+         ep[i] = lo[i];
+         lastRev = i;
+         af[i] = step;
+      } else if (!isLong && sar[i] < hi[i]) {
+         isLong = true;
+         sar[i] = lo[ArrayMinimum(lo, lastRev, i - lastRev)];
+         ep[i] = hi[i];
+         lastRev = i;
+         af[i] = step;
+      }
+      if (isLong) {
+         if (hi[i] > ep[i - 1] && i != lastRev) { ep[i] = hi[i]; af[i] = MathMin(af[i - 1] + step, maximum); }
+         else if (i != lastRev) { af[i] = af[i - 1]; ep[i] = ep[i - 1]; }
+         if (i + 1 < W) {
+            sar[i + 1] = sar[i] + af[i] * (ep[i] - sar[i]);
+            if (sar[i + 1] > lo[i] || sar[i + 1] > lo[i - 1]) sar[i + 1] = MathMin(lo[i], lo[i - 1]);
+         }
+      } else {
+         if (lo[i] < ep[i - 1] && i != lastRev) { ep[i] = lo[i]; af[i] = MathMin(af[i - 1] + step, maximum); }
+         else if (i != lastRev) { af[i] = af[i - 1]; ep[i] = ep[i - 1]; }
+         if (i + 1 < W) {
+            sar[i + 1] = sar[i] + af[i] * (ep[i] - sar[i]);
+            if (sar[i + 1] < hi[i] || sar[i + 1] < hi[i - 1]) sar[i + 1] = MathMax(hi[i], hi[i - 1]);
+         }
+      }
+   }
+   return sar[W - 1];
+}
+
+// Session codes: 0 London, 1 New York, 2 Asia, 3 London/NY overlap (GMT hours).
+bool StratoSessionOn(int session, int h) {
+   switch (session) {
+      case 0: return ${SESSION_TEST.london};
+      case 1: return ${SESSION_TEST.new_york};
+      case 2: return ${SESSION_TEST.asia};
+      default: return ${SESSION_TEST.london_ny_overlap};
+   }
+}
+
+// High/low of the most recent run of bars inside the session, scanning back from bar i.
+double StratoSessionRange(int session, bool high, int i) {
+   bool found = false;
+   double best = high ? -DBL_MAX : DBL_MAX;
+   for (int j = i; j < i + 1000; j++) {
+      datetime t = iTime(_Symbol, InpTimeframe, j);
+      if (t == 0) break;
+      if (StratoSessionOn(session, StratoGmtHour(t))) {
+         found = true;
+         best = high ? MathMax(best, iHigh(_Symbol, InpTimeframe, j)) : MathMin(best, iLow(_Symbol, InpTimeframe, j));
+      } else if (found) break;
+   }
+   return found ? best : EMPTY_VALUE;
 }
 
 // Tick-volume-weighted average price from the start of bar i's trading day through bar i.
@@ -590,7 +820,7 @@ function patternBody(
    double o = iOpen(_Symbol, ${tf}, i), c = iClose(_Symbol, ${tf}, i);
    double h = iHigh(_Symbol, ${tf}, i), l = iLow(_Symbol, ${tf}, i);
    if (o <= 0) return false;`;
-  const bullish = c.side === "bullish";
+  const bullish = "side" in c && c.side === "bullish";
   switch (c.pattern) {
     case "engulfing":
       return `${head}
@@ -615,6 +845,40 @@ function patternBody(
    if (oldHigh <= 0) return false;
    return StratoGte(${bullish ? "l - oldHigh" : "oldLow - h"}, ${min} * StratoPip());`;
     }
+    case "inside_bar":
+    case "outside_bar": {
+      const test =
+        c.pattern === "inside_bar" ? "StratoLt(h, ph) && StratoGt(l, pl)" : "StratoGt(h, ph) && StratoLt(l, pl)";
+      return `${head}
+   double ph = iHigh(_Symbol, ${tf}, i + 1), pl = iLow(_Symbol, ${tf}, i + 1);
+   if (ph <= 0) return false;
+   return ${test};`;
+    }
+    case "doji":
+      return `${head}
+   double range = h - l;
+   return StratoGt(range, 0) && StratoLte(MathAbs(c - o), range * 0.1);`;
+    case "three_in_row": {
+      const dir = (open: string, close: string) => (bullish ? `StratoGt(${close}, ${open})` : `StratoLt(${close}, ${open})`);
+      const beyond = (a: string, b: string) => (bullish ? `StratoGt(${a}, ${b})` : `StratoLt(${a}, ${b})`);
+      return `${head}
+   double o1 = iOpen(_Symbol, ${tf}, i + 1), c1 = iClose(_Symbol, ${tf}, i + 1);
+   double o2 = iOpen(_Symbol, ${tf}, i + 2), c2 = iClose(_Symbol, ${tf}, i + 2);
+   if (o1 <= 0 || o2 <= 0) return false;
+   return ${dir("o", "c")} && ${dir("o1", "c1")} && ${dir("o2", "c2")} && ${beyond("c", "c1")} && ${beyond("c1", "c2")};`;
+    }
+    case "star":
+      return `${head}
+   double om = iOpen(_Symbol, ${tf}, i + 1), cm = iClose(_Symbol, ${tf}, i + 1);
+   double of = iOpen(_Symbol, ${tf}, i + 2), cf = iClose(_Symbol, ${tf}, i + 2);
+   if (om <= 0 || of <= 0) return false;
+   bool smallMiddle = StratoLt(MathAbs(cm - om), MathAbs(cf - of) * 0.3);
+   double midpoint = (of + cf) / 2;
+   return ${
+     bullish
+       ? "StratoLt(cf, of) && smallMiddle && StratoGt(c, o) && StratoGt(c, midpoint)"
+       : "StratoGt(cf, of) && smallMiddle && StratoLt(c, o) && StratoLt(c, midpoint)"
+   };`;
     case "order_block": {
       const lookback = input("int", `Ob${id}_Lookback`, c.lookback, "Order block lookback (bars)");
       return `${head}

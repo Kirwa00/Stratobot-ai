@@ -16,8 +16,10 @@
 //   using it false.
 
 export type Timeframe = "M1" | "M5" | "M15" | "M30" | "H1" | "H4" | "D1" | "W1";
-export type Field = "open" | "high" | "low" | "close";
+/** median = (H+L)/2, typical = (H+L+C)/3, weighted = (H+L+2C)/4, as MT5's applied prices. */
+export type Field = "open" | "high" | "low" | "close" | "median" | "typical" | "weighted";
 export type Side = "bullish" | "bearish";
+export type MaMethod = "sma" | "ema" | "smma" | "lwma";
 
 interface Series {
   /** Omitted = the strategy's own timeframe. */
@@ -29,13 +31,33 @@ export type Value =
   | { kind: "const"; value: number }
   | { kind: "pips"; value: number }
   | ({ kind: "price"; field: Field } & Series)
-  | ({ kind: "ma"; method: "sma" | "ema" | "smma" | "lwma"; period: number; field?: Field } & Series)
+  | ({ kind: "ma"; method: MaMethod; period: number; field?: Field } & Series)
   | ({ kind: "rsi"; period: number } & Series)
   | ({ kind: "atr"; period: number } & Series)
   | ({ kind: "macd"; fast: number; slow: number; signal: number; line: "main" | "signal" } & Series)
   | ({ kind: "bands"; period: number; deviation: number; line: "middle" | "upper" | "lower" } & Series)
+  /** %K main line, or its SMA signal line (MT5 iStochastic, low/high price field). */
+  | ({ kind: "stochastic"; k: number; d: number; slowing: number; line: "main" | "signal" } & Series)
+  /** Default field: typical price. */
+  | ({ kind: "cci"; period: number; field?: Field } & Series)
+  | ({ kind: "adx"; period: number; line: "adx" | "plus_di" | "minus_di" } & Series)
+  | ({ kind: "sar"; step: number; max: number } & Series)
+  /** close / close[period bars ago] * 100. */
+  | ({ kind: "momentum"; period: number; field?: Field } & Series)
+  /** Williams %R, 0 to -100. */
+  | ({ kind: "wpr"; period: number } & Series)
+  /** Moving average +/- deviation percent. */
+  | ({ kind: "envelopes"; period: number; method: MaMethod; deviation: number; line: "upper" | "lower"; field?: Field } & Series)
+  | ({ kind: "stddev"; period: number; field?: Field } & Series)
+  | ({ kind: "demarker"; period: number } & Series)
   /** Highest high / lowest low over `bars` bars starting at `shift`. */
   | ({ kind: "highest" | "lowest"; bars: number } & Series)
+  /** Size of one candle: body, full range, or a wick. */
+  | ({ kind: "candle"; measure: "body" | "range" | "upper_wick" | "lower_wick" } & Series)
+  /** Most recent confirmed swing high/low: a bar beyond its `strength` neighbours on each side, within `lookback` bars. */
+  | ({ kind: "swing"; side: "high" | "low"; strength: number; lookback: number } & Series)
+  /** High/low of the most recent run of bars inside a session (in progress or just finished), strategy timeframe. */
+  | { kind: "session_range"; session: Session; side: "high" | "low"; shift?: number }
   /** Tick-volume-weighted average price since the start of the bar's trading day (strategy timeframe only). */
   | { kind: "vwap"; shift?: number }
   | { kind: "arith"; op: "add" | "sub" | "mul" | "div"; a: Value; b: Value };
@@ -46,7 +68,17 @@ export type Pattern =
   /** Gap between the newest candle's wick and the wick two candles older. */
   | { pattern: "fvg"; side: Side; minPips: number }
   /** First candle in `lookback` whose body is >1.5x the one before it; price back inside that earlier candle. */
-  | { pattern: "order_block"; side: Side; lookback: number };
+  | { pattern: "order_block"; side: Side; lookback: number }
+  /** Range fully inside the previous candle's range. */
+  | { pattern: "inside_bar" }
+  /** Range fully covers the previous candle's range. */
+  | { pattern: "outside_bar" }
+  /** Body at most 10% of the range. */
+  | { pattern: "doji" }
+  /** Three same-direction candles, each closing beyond the last (three soldiers / three crows). */
+  | { pattern: "three_in_row"; side: Side }
+  /** Morning (bullish) / evening (bearish) star. */
+  | { pattern: "star"; side: Side };
 
 export type Session = "london" | "new_york" | "asia" | "london_ny_overlap";
 
@@ -57,6 +89,10 @@ export type Condition =
   | { kind: "near"; a: Value; b: Value; pips: number }
   | ({ kind: "pattern" } & Pattern & Series)
   | { kind: "session"; name: Session }
+  /** GMT hour window [fromHour, toHour); wraps past midnight when fromHour > toHour. */
+  | { kind: "time_window"; fromHour: number; toHour: number }
+  /** GMT weekday of the decision, 0 = Sunday. */
+  | { kind: "weekday"; days: number[] }
   | { kind: "all"; of: Condition[] }
   | { kind: "any"; of: Condition[] }
   | { kind: "not"; of: Condition }

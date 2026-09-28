@@ -14,7 +14,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { blocksToRules } from "../../src/lib/rules/from-blocks";
 import { compileRules } from "../../src/lib/rules/compile-mql5";
 import { Interpreter, pipSize, type Candle } from "../../src/lib/rules/interpret";
 import type { RuleStrategy } from "../../src/lib/rules/types";
@@ -149,9 +148,8 @@ const selected = process.argv.slice(2);
 const names = selected.length ? selected : Object.keys(CASES);
 let failed = 0;
 for (const name of names) {
-  const blocks = CASES[name];
-  if (!blocks) throw new Error(`unknown case ${name}`);
-  const rules = blocksToRules(blocks);
+  const rules = CASES[name];
+  if (!rules) throw new Error(`unknown case ${name}`);
   let result: ReturnType<typeof compare>;
   try {
     compileEa(name, rules);
