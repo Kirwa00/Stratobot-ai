@@ -1,419 +1,331 @@
 // Deterministic Code Composer
-// Engineering Plan v1.2 §1: "LLM never writes a line of MQL5. It does exactly one job: 
-// translate trader language into a strict, schema-validated Blueprint JSON. A deterministic 
-// code composer then assembles the .mq5 file from a library of hand-written, pre-compiled, 
+// Engineering Plan v1.2 §1: "LLM never writes a line of MQL5. It does exactly one job:
+// translate trader language into a strict, schema-validated Blueprint JSON. A deterministic
+// code composer then assembles the .mq5 file from a library of hand-written, pre-compiled,
 // individually-tested MQL5 block templates."
+//
+// Every generated file is compiled against real MetaEditor before template
+// changes ship; see mql5-templates.ts for the template contract.
 
 import { getBlock } from "./blocks";
-import { getMQL5Template, MQL5Template } from "./mql5-templates";
-import { validateBlueprintSchema, sanitizeBlueprint } from "./blueprint-schema";
-import type { Strategy, BlockInstance } from "./types";
+import { getMQL5Template, type MQL5Template } from "./mql5-templates";
+import type { BlockDef, BlockInstance, ParamDef, Strategy } from "./types";
 
-interface ComposerOptions {
-  includeComments?: boolean;
-  strictMode?: boolean;
-  validateInputs?: boolean;
+export type ComposeResult =
+  | { ok: true; code: string; notes: string[] }
+  | { ok: false; error: string };
+
+interface Part {
+  def: BlockDef;
+  template: MQL5Template;
+  /** Replaces {blockId}: the block id, or id_2, id_3... for repeat instances. */
+  token: string;
 }
 
-interface MQL5BuildResult {
-  success: boolean;
-  code?: string;
-  errors?: string[];
-  warnings?: string[];
-}
+/** Plain-English caveats about how this EA will behave, shown before download. */
+const NOTES = {
+  noDirection:
+    "None of your rules decides buy vs. sell, so the bot won't trade until you set its \"If no rule picks a direction\" input to Buy or Sell in MetaTrader.",
+  riskWithoutStop:
+    "Risk Per Trade needs a Stop Loss to size trades from, and this strategy has none, so it uses a fixed lot size instead.",
+  rrWithoutStops:
+    "Risk : Reward compares your Take Profit to your Stop Loss, so it has no effect unless the strategy has both.",
+  newsInTester:
+    "The News Filter uses MetaTrader's live economic calendar, which doesn't exist in the Strategy Tester, so backtests will ignore it.",
+};
 
-/**
- * Generates a complete, compilable MQL5 Expert Advisor from a strategy blueprint.
- * This is the deterministic composer that guarantees compilation if the blueprint is valid.
- */
-export function composeMQL5FromStrategy(
-  strategy: Strategy,
-  options: ComposerOptions = {}
-): MQL5BuildResult {
-  const {
-    includeComments = true,
-    strictMode = true,
-    validateInputs = true
-  } = options;
+export function composeMQL5FromStrategy(strategy: Strategy): ComposeResult {
+  const counts = new Map<string, number>();
+  const parts: { part: Part; block: BlockInstance }[] = [];
 
-  // Validate blueprint schema first
-  const schemaValidation = validateBlueprintSchema(strategy);
-  if (!schemaValidation.valid) {
+  for (const block of strategy.blocks ?? []) {
+    const def = getBlock(block.blockId);
+    const template = getMQL5Template(block.blockId);
+    if (!def || !template) continue;
+    const n = (counts.get(def.id) ?? 0) + 1;
+    counts.set(def.id, n);
+    parts.push({ part: { def, template, token: n === 1 ? def.id : `${def.id}_${n}` }, block });
+  }
+
+  if (!parts.some(({ part }) => part.def.role !== "exit")) {
     return {
-      success: false,
-      errors: schemaValidation.errors.map(e => `${e.path}: ${e.message}`),
-      warnings: schemaValidation.warnings.map(w => `${w.path}: ${w.message}`)
+      ok: false,
+      error:
+        "This strategy only has exit rules (like a stop or trailing stop), so there's nothing that tells the bot when to open a trade. Add at least one entry rule and try again.",
     };
   }
 
-  const errors: string[] = [...schemaValidation.warnings.map(w => `${w.path}: ${w.message}`)];
-  const warnings: string[] = [];
+  const first = (id: string) => parts.find(({ part }) => part.def.id === id)?.part;
+  const has = (id: string) => first(id) !== undefined;
 
-  // Sanitize blueprint to ensure clean data
-  const sanitizedStrategy = sanitizeBlueprint(strategy);
+  const notes: string[] = [];
+  if (!parts.some(({ part }) => part.template.votes)) notes.push(NOTES.noDirection);
+  if (has("risk_per_trade") && !has("stop_loss")) notes.push(NOTES.riskWithoutStop);
+  if (has("risk_reward") && !(has("stop_loss") && has("take_profit"))) notes.push(NOTES.rrWithoutStops);
+  if (has("news_filter")) notes.push(NOTES.newsInTester);
 
-  // Validate strategy structure
-  if (!sanitizedStrategy.blocks || sanitizedStrategy.blocks.length === 0) {
-    errors.push("Strategy must contain at least one block");
-    return { success: false, errors };
-  }
-
-  // Separate entry/filter blocks from exit blocks
-  const entryBlocks = sanitizedStrategy.blocks.filter(b => {
-    const def = getBlock(b.blockId);
-    return def && def.role !== "exit";
-  });
-
-  const exitBlocks = sanitizedStrategy.blocks.filter(b => {
-    const def = getBlock(b.blockId);
-    return def && def.role === "exit";
-  });
-
-  if (entryBlocks.length === 0) {
-    errors.push("Strategy must contain at least one entry or filter block");
-    return { success: false, errors };
-  }
-
-  // Collect all dependencies and check for template availability
-  const allDependencies = new Set<string>();
-  const allTemplates: MQL5Template[] = [];
-
-  for (const block of sanitizedStrategy.blocks) {
-    const template = getMQL5Template(block.blockId);
-    if (!template) {
-      errors.push(`No MQL5 template found for block: ${block.blockId}`);
-      continue;
-    }
-
-    allTemplates.push(template);
-    template.dependencies.forEach(dep => allDependencies.add(dep));
-
-    // Validate block parameters
-    if (validateInputs) {
-      const def = getBlock(block.blockId);
-      if (def) {
-        for (const paramDef of def.params) {
-          const value = block.params[paramDef.key];
-          if (value === undefined || value === null || value === "") {
-            warnings.push(`Block ${block.blockId} has empty parameter: ${paramDef.key}`);
-          }
-          
-          // Type validation
-          if (paramDef.type === "number") {
-            const numValue = Number(value);
-            if (isNaN(numValue)) {
-              errors.push(`Block ${block.blockId} parameter ${paramDef.key} is not a valid number`);
-            } else if (paramDef.min !== undefined && numValue < paramDef.min) {
-              errors.push(`Block ${block.blockId} parameter ${paramDef.key} is below minimum ${paramDef.min}`);
-            } else if (paramDef.max !== undefined && numValue > paramDef.max) {
-              errors.push(`Block ${block.blockId} parameter ${paramDef.key} is above maximum ${paramDef.max}`);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (errors.length > 0 && strictMode) {
-    return { success: false, errors };
-  }
-
-  // Build the MQL5 code
-  const code = buildMQL5Code(
-    sanitizedStrategy,
-    entryBlocks,
-    exitBlocks,
-    allTemplates,
-    includeComments
+  const blockCode = parts.map(({ part, block }) =>
+    applyParams(part.template.code.replace(/\{blockId\}/g, part.token), part, block)
   );
 
-  return {
-    success: true,
-    code,
-    errors: errors.length > 0 ? errors : undefined,
-    warnings: warnings.length > 0 ? warnings : undefined
-  };
+  return { ok: true, code: buildFile(strategy, parts.map((p) => p.part), blockCode, first), notes };
 }
 
-function buildMQL5Code(
+function buildFile(
   strategy: Strategy,
-  entryBlocks: BlockInstance[],
-  exitBlocks: BlockInstance[],
-  templates: MQL5Template[],
-  includeComments: boolean
+  parts: Part[],
+  blockCode: string[],
+  first: (id: string) => Part | undefined
 ): string {
-  const lines: string[] = [];
+  const call = (p: Part, prefix: "Check_" | "Apply_") =>
+    p.template.functions.find((f) => f.startsWith(prefix))?.replace(/\{blockId\}/g, p.token);
 
-  // Header
-  if (includeComments) {
-    lines.push("//+------------------------------------------------------------------+");
-    lines.push("//| StratoBot AI - Generated Expert Advisor                            |");
-    lines.push("//|                                                                    |");
-    lines.push(`//| Strategy: ${strategy.name.padEnd(52)}|`);
-    lines.push(`//| Generated: ${new Date(strategy.updatedAt).toISOString().padEnd(45)}|`);
-    lines.push("//|                                                                    |");
-    lines.push("//| This EA was automatically generated from a trading strategy.       |");
-    lines.push("//| Review the code carefully before using in live trading.            |");
-    lines.push("//+------------------------------------------------------------------+");
-    lines.push("");
-  }
+  const entryChecks = parts
+    .filter((p) => p.def.role !== "exit")
+    .flatMap((p) => {
+      const fn = call(p, "Check_");
+      return fn ? [`   // ${p.def.label}`, `   if (!${fn}()) return false;`] : [];
+    });
 
-  // Properties
-  lines.push("#property copyright \"StratoBot AI\"");
-  lines.push("#property link \"https://stratobot.ai\"");
-  lines.push("#property version \"1.00\"");
-  lines.push("#property strict");
-  lines.push("");
+  const exitCalls = parts
+    .filter((p) => p.def.role === "exit")
+    .flatMap((p) => {
+      const fn = call(p, "Apply_");
+      return fn ? [`   ${fn}();`] : [];
+    });
 
-  // CTrade is always required, not just when a block opts in: OpenPosition()
-  // below (part of the fixed scaffold, present regardless of which blocks
-  // were chosen) unconditionally calls trade.Buy()/trade.Sell(), and OnInit()
-  // unconditionally configures `trade`. Gating the #include behind
-  // `dependencies.has("CTrade")` — only 4 of 28 blocks (the exit blocks that
-  // call PositionModify) ever added that dependency — meant any strategy
-  // without one of those four (i.e. most strategies) got `CTrade trade;`
-  // with no matching #include: "unexpected token" on that line, cascading
-  // into "undeclared identifier 'trade'" everywhere trade.* is called.
-  lines.push("#include <Trade\\Trade.mqh>");
-  lines.push("");
+  const sl = first("stop_loss");
+  const tp = first("take_profit");
+  const size = first("position_size");
+  const risk = first("risk_per_trade");
+  const rr = first("risk_reward");
+  const news = first("news_filter");
 
-  // Global variables
-  lines.push("// Global variables");
-  lines.push("CTrade trade;");
-  lines.push("");
+  const initNotes: string[] = [];
+  if (risk && !sl) initNotes.push(`   Print("StratoBot: ${NOTES.riskWithoutStop}");`);
+  if (rr && !(sl && tp)) initNotes.push(`   Print("StratoBot: ${NOTES.rrWithoutStops}");`);
+  if (news) initNotes.push(`   if (MQLInfoInteger(MQL_TESTER)) Print("StratoBot: ${NOTES.newsInTester}");`);
 
-  // Note: no separate "input parameters" pre-declaration block here — each
-  // block's own template.code already declares its `input` line (with the
-  // correct type and default) right next to where it's used, further down.
-  // A prior version of this composer also emitted bare parameter names
-  // (e.g. "killzone_session" with no type, no value, no semicolon) up here,
-  // which is not valid MQL5 and caused every generated .mq5 file to fail to
-  // compile with cascading "undeclared identifier" errors.
+  const title = safeComment(strategy.name || "Untitled Strategy").slice(0, 52);
+  const generated = Number.isFinite(strategy.updatedAt) ? new Date(strategy.updatedAt).toISOString() : "";
 
-  // Global variables for strategy state
-  lines.push("// Strategy state variables");
-  lines.push("datetime lastTradeTime = 0;");
-  lines.push("int tradeCooldown = 60; // Seconds between trades");
-  lines.push("");
+  return `//+------------------------------------------------------------------+
+//| StratoBot AI - Generated Expert Advisor
+//| Strategy: ${title}
+//| Generated: ${generated}
+//|
+//| Review this EA and run it on a demo account before trading real money.
+//+------------------------------------------------------------------+
+#property copyright "StratoBot AI"
+#property link "https://www.stratobot.trade"
+#property version "1.00"
 
-  // Initialize function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Expert initialization function                                     |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("int OnInit()");
-  lines.push("{");
-  lines.push("   // Set trade parameters");
-  lines.push("   trade.SetExpertMagicNumber(123456);");
-  lines.push("   trade.SetDeviationInPoints(10);");
-  lines.push("   trade.SetTypeFilling(ORDER_FILLING_IOC);");
-  lines.push("");
-  lines.push("   return(INIT_SUCCEEDED);");
-  lines.push("}");
-  lines.push("");
+#include <Trade\\Trade.mqh>
 
-  // Deinitialize function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Expert deinitialization function                                   |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("void OnDeinit(const int reason)");
-  lines.push("{");
-  lines.push("   // Cleanup if needed");
-  lines.push("}");
-  lines.push("");
+input long   InpMagic = ${magicNumber(strategy.id)}; // Magic number (identifies this EA's trades)
+input double InpDefaultLots = 0.1; // Lot size when no sizing rule applies
+input string InpNoSignalDirection = "Skip"; // If no rule picks a direction: Skip, Buy, Sell
+input int    InpCooldownSeconds = 60; // Minimum seconds between entries
 
-  // Tick function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Expert tick function                                               |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("void OnTick()");
-  lines.push("{");
-  lines.push("   // Check if we have an open position");
-  lines.push("   if (PositionsTotal() > 0) {");
-  lines.push("      // Manage exits");
-  lines.push("      ManageExits();");
-  lines.push("      return;");
-  lines.push("   }");
-  lines.push("");
-  lines.push("   // Check trade cooldown");
-  lines.push("   if (TimeCurrent() - lastTradeTime < tradeCooldown) return;");
-  lines.push("");
-  lines.push("   // Check entry conditions");
-  lines.push("   if (CheckEntry()) {");
-  lines.push("      OpenPosition();");
-  lines.push("      lastTradeTime = TimeCurrent();");
-  lines.push("   }");
-  lines.push("}");
-  lines.push("");
+CTrade trade;
+datetime lastTradeTime = 0;
+int g_dir = 0;
+bool g_dirConflict = false;
+datetime g_lastWarnBar = 0;
 
-  // CheckEntry function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Check entry conditions                                              |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("bool CheckEntry()");
-  lines.push("{");
-  
-  for (const block of entryBlocks) {
-    const template = getMQL5Template(block.blockId);
-    if (template) {
-      const functionName = instantiateTemplateString(
-        template.functions.find(f => f.startsWith("Check_")) || "Check_Unknown",
-        template.blockId
-      );
-      lines.push(`   // ${getBlock(block.blockId)?.label || block.blockId}`);
-      lines.push(`   if (!${functionName}()) return false;`);
-      lines.push("");
-    }
-  }
-  
-  lines.push("   return true;");
-  lines.push("}");
-  lines.push("");
-
-  // OpenPosition function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Open position based on strategy                                   |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("void OpenPosition()");
-  lines.push("{");
-  lines.push("   double lotSize = 0.1; // Default lot size");
-  lines.push("   ");
-  lines.push("   // Check for custom position size");
-  lines.push("   if (GlobalVariableCheck(\"stratobot_position_size\")) {");
-  lines.push("      lotSize = GlobalVariableGet(\"stratobot_position_size\");");
-  lines.push("   }");
-  lines.push("");
-  lines.push("   // Calculate position size based on risk if configured");
-  lines.push("   if (GlobalVariableCheck(\"stratobot_risk_amount\")) {");
-  lines.push("      double riskAmount = GlobalVariableGet(\"stratobot_risk_amount\");");
-  lines.push("      double stopLoss = 50 * _Point; // Default SL");
-  lines.push("      lotSize = riskAmount / (stopLoss / _Point);");
-  lines.push("   }");
-  lines.push("");
-  lines.push("   // Determine direction (simplified - would use strategy logic)");
-  lines.push("   bool buySignal = true; // Would be determined by strategy");
-  lines.push("");
-  lines.push("   if (buySignal) {");
-  lines.push("      trade.Buy(lotSize, _Symbol, 0, 0, \"StratoBot Entry\");");
-  lines.push("   } else {");
-  lines.push("      trade.Sell(lotSize, _Symbol, 0, 0, \"StratoBot Entry\");");
-  lines.push("   }");
-  lines.push("}");
-  lines.push("");
-
-  // ManageExits function
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Manage exit conditions                                             |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("void ManageExits()");
-  lines.push("{");
-  
-  for (const block of exitBlocks) {
-    const template = getMQL5Template(block.blockId);
-    if (template) {
-      const functionName = instantiateTemplateString(
-        template.functions.find(f => f.startsWith("Apply_")) || "Apply_Unknown",
-        template.blockId
-      );
-      lines.push(`   // ${getBlock(block.blockId)?.label || block.blockId}`);
-      lines.push(`   ${functionName}();`);
-      lines.push("");
-    }
-  }
-  
-  if (exitBlocks.length === 0) {
-    lines.push("   // No exit blocks configured");
-  }
-  
-  lines.push("}");
-  lines.push("");
-
-  // Block functions
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("//| Block implementation functions                                      |");
-  lines.push("//+------------------------------------------------------------------+");
-  lines.push("");
-
-  for (const template of templates) {
-    const functionCode = instantiateTemplateCode(template.code, template.blockId);
-    lines.push(functionCode);
-    lines.push("");
-  }
-
-  return lines.join("\n");
+// 1 pip = 10 points on 5- and 3-digit quotes (most brokers), 1 point otherwise.
+double StratoPip() {
+   return (_Digits == 3 || _Digits == 5) ? _Point * 10.0 : _Point;
 }
 
-/**
- * Replaces template placeholders with actual block IDs
- * e.g., "{blockId}_session" becomes "killzone_session"
- */
-function instantiateTemplateString(template: string, blockId: string): string {
-  return template.replace(/\{blockId\}/g, blockId);
+// Directional rules vote +1 (buy) or -1 (sell); disagreeing votes cancel the trade.
+void Vote(int dir) {
+   if (dir == 0) return;
+   if (g_dir == 0) g_dir = dir;
+   else if (g_dir != dir) g_dirConflict = true;
 }
 
-/**
- * Replaces template placeholders in code with actual block IDs
- */
-function instantiateTemplateCode(code: string, blockId: string): string {
-  return code.replace(/\{blockId\}/g, blockId);
+// Call after PositionSelectByTicket(): true only for this EA's own positions.
+bool IsOwnPosition() {
+   return PositionGetString(POSITION_SYMBOL) == _Symbol && PositionGetInteger(POSITION_MAGIC) == InpMagic;
 }
 
-/**
- * Validates a blueprint against the block library schema
- * This ensures the blueprint can be successfully composed
- */
-export function validateBlueprint(strategy: Strategy): {
-  valid: boolean;
-  errors: string[];
-} {
-  const schemaValidation = validateBlueprintSchema(strategy);
-  return {
-    valid: schemaValidation.valid,
-    errors: schemaValidation.errors.map(e => `${e.path}: ${e.message}`)
-  };
+// Journal message, at most one per bar so a blocked condition doesn't flood the log every tick.
+void StratoWarn(string message) {
+   datetime bar = iTime(_Symbol, _Period, 0);
+   if (bar == g_lastWarnBar) return;
+   g_lastWarnBar = bar;
+   Print("StratoBot: ", message);
 }
 
-/**
- * Generates a human-readable summary of what the composed EA will do
- */
-export function generateCompositionSummary(strategy: Strategy): string {
-  const entryBlocks = strategy.blocks.filter(b => {
-    const def = getBlock(b.blockId);
-    return def && def.role !== "exit";
-  });
+//+------------------------------------------------------------------+
+//| Strategy rules                                                   |
+//+------------------------------------------------------------------+
+${blockCode.join("\n")}
 
-  const exitBlocks = strategy.blocks.filter(b => {
-    const def = getBlock(b.blockId);
-    return def && def.role === "exit";
-  });
+//+------------------------------------------------------------------+
+//| Sizing and stops                                                 |
+//+------------------------------------------------------------------+
+double StratoSLPips() {
+   return ${sl ? `${sl.token}_distance` : "0"};
+}
 
-  const lines: string[] = [];
-  lines.push(`Strategy: ${strategy.name}`);
-  lines.push(`Entry conditions (${entryBlocks.length}):`);
-  
-  for (const block of entryBlocks) {
-    const def = getBlock(block.blockId);
-    const params = Object.entries(block.params)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(", ");
-    lines.push(`  - ${def?.label || block.blockId} (${params})`);
+double StratoTPPips() {
+   return ${tp ? `${tp.token}_distance` : "0"};
+}
+
+double NormalizeLots(double lots) {
+   double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+   double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   if (step <= 0) step = 0.01;
+   lots = MathFloor(lots / step + 1e-9) * step;
+   if (lots < minLot) return 0;
+   if (maxLot > 0 && lots > maxLot) lots = maxLot;
+   return NormalizeDouble(lots, 8);
+}
+
+double StratoLots() {
+   double lots = ${size ? `${size.token}_size` : "InpDefaultLots"};
+${
+  risk && sl
+    ? `   // Size so that hitting the Stop Loss loses ${risk.token}_percent of the balance${size ? " (the fixed Position Size acts as a cap)" : ""}.
+   double riskMoney = AccountInfoDouble(ACCOUNT_BALANCE) * ${risk.token}_percent / 100.0;
+   double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
+   double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
+   double stopDistance = StratoSLPips() * StratoPip();
+   if (tickValue > 0 && tickSize > 0 && stopDistance > 0) {
+      double riskLots = riskMoney / ((stopDistance / tickSize) * tickValue);
+      lots = ${size ? "MathMin(lots, riskLots)" : "riskLots"};
+   }
+`
+    : ""
+}   return NormalizeLots(lots);
+}
+
+//+------------------------------------------------------------------+
+//| Expert lifecycle                                                 |
+//+------------------------------------------------------------------+
+int OnInit() {
+   trade.SetExpertMagicNumber(InpMagic);
+   trade.SetDeviationInPoints(10);
+   trade.SetTypeFillingBySymbol(_Symbol);
+${initNotes.join("\n")}
+   return(INIT_SUCCEEDED);
+}
+
+void OnDeinit(const int reason) {
+}
+
+int CountOwnPositions() {
+   int count = 0;
+   for (int i = PositionsTotal() - 1; i >= 0; i--) {
+      ulong ticket = PositionGetTicket(i);
+      if (ticket > 0 && PositionSelectByTicket(ticket) && IsOwnPosition()) count++;
+   }
+   return count;
+}
+
+void OnTick() {
+   if (CountOwnPositions() > 0) {
+      ManageExits();
+      return;
+   }
+   if (TimeCurrent() - lastTradeTime < InpCooldownSeconds) return;
+   if (CheckEntry()) OpenPosition();
+}
+
+bool CheckEntry() {
+   g_dir = 0;
+   g_dirConflict = false;
+
+${entryChecks.join("\n")}
+   return true;
+}
+
+void OpenPosition() {
+   if (g_dirConflict) {
+      StratoWarn("rules pointed in opposite directions (buy and sell), so no trade was opened");
+      return;
+   }
+   int dir = g_dir;
+   if (dir == 0) {
+      if (InpNoSignalDirection == "Buy") dir = 1;
+      else if (InpNoSignalDirection == "Sell") dir = -1;
+      else {
+         StratoWarn("entry conditions met, but no rule picks buy or sell; set the 'If no rule picks a direction' input to trade");
+         return;
+      }
+   }
+
+   double lots = StratoLots();
+   if (lots <= 0) {
+      StratoWarn("calculated lot size is below this symbol's minimum, so no trade was opened");
+      return;
+   }
+
+   double price = dir > 0 ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double sl = 0;
+   double tp = 0;
+   if (StratoSLPips() > 0) sl = NormalizeDouble(price - dir * StratoSLPips() * StratoPip(), _Digits);
+   if (StratoTPPips() > 0) tp = NormalizeDouble(price + dir * StratoTPPips() * StratoPip(), _Digits);
+
+   bool sent = dir > 0 ? trade.Buy(lots, _Symbol, 0, sl, tp, "StratoBot")
+                       : trade.Sell(lots, _Symbol, 0, sl, tp, "StratoBot");
+   if (sent && (trade.ResultRetcode() == TRADE_RETCODE_DONE || trade.ResultRetcode() == TRADE_RETCODE_PLACED)) {
+      lastTradeTime = TimeCurrent();
+   } else {
+      StratoWarn("order was rejected: " + trade.ResultRetcodeDescription());
+   }
+}
+
+void ManageExits() {
+${exitCalls.length ? exitCalls.join("\n") : "   // No exit rules: positions are closed manually or by the broker."}
+}
+`;
+}
+
+/** Rewrites each block's `input` default to the trader's value (clamped / validated
+ *  against the block library), so the file reflects what they actually configured. */
+function applyParams(code: string, part: Part, block: BlockInstance): string {
+  let out = code;
+  for (const p of part.def.params) {
+    const re = new RegExp(`^(input\\s+(\\w+)\\s+${part.token}_${p.key}\\s*=\\s*)[^;]*;`, "m");
+    const match = out.match(re);
+    if (!match) throw new Error(`MQL5 template for "${part.def.id}" has no input for param "${p.key}"`);
+    const literal = toLiteral(match[2], normalizeParam(p, block.params?.[p.key]));
+    out = out.replace(re, (_all, head: string) => `${head}${literal};`);
   }
+  return out;
+}
 
-  lines.push(`Exit conditions (${exitBlocks.length}):`);
-  
-  for (const block of exitBlocks) {
-    const def = getBlock(block.blockId);
-    const params = Object.entries(block.params)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(", ");
-    lines.push(`  - ${def?.label || block.blockId} (${params})`);
+function normalizeParam(p: ParamDef, raw: string | number | undefined): string | number {
+  if (p.type === "number") {
+    const n = Number(raw);
+    if (raw === undefined || raw === "" || !Number.isFinite(n)) return p.default;
+    return Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, n));
   }
-
-  if (strategy.unmapped.length > 0) {
-    lines.push(`Unmapped clauses (${strategy.unmapped.length}):`);
-    for (const clause of strategy.unmapped) {
-      lines.push(`  - "${clause.text}"`);
-    }
+  if (p.type === "select") {
+    return p.options?.some((o) => o.value === raw) ? String(raw) : p.default;
   }
+  return typeof raw === "string" && raw ? raw : p.default;
+}
 
-  return lines.join("\n");
+function toLiteral(mqlType: string, value: string | number): string {
+  if (mqlType === "string") {
+    return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]/g, " ")}"`;
+  }
+  const n = Number(value);
+  return mqlType === "int" || mqlType === "long" ? String(Math.round(n)) : String(n);
+}
+
+function safeComment(text: string): string {
+  return text.replace(/[\x00-\x1f\x7f]/g, " ");
+}
+
+/** Stable per-strategy magic number, so two StratoBot EAs on one account don't manage each other's trades. */
+function magicNumber(id: string): number {
+  let h = 0;
+  for (const ch of id ?? "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return 100000 + (h % 900000);
 }

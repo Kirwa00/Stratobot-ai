@@ -294,14 +294,20 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   // continuously for 30+ days with no navigation) could show stale "still
   // active" status until something re-triggers the effect — acceptable for
   // a client-only pass like this.
-  const [proStatus, setProStatus] = useState<{ active: boolean; daysLeft: number | null }>({
-    active: false,
-    daysLeft: null,
-  });
+  // `forPaidAt` records which paidAt this snapshot was computed from; until it
+  // matches the hydrated paidAt, the store reports hydrated: false. Otherwise
+  // there's one render where storage is loaded but the pass reads inactive, and
+  // the paid-gated pages (/download, /building) redirect paying users away.
+  const [proStatus, setProStatus] = useState<{
+    forPaidAt: number | null | undefined;
+    active: boolean;
+    daysLeft: number | null;
+  }>({ forPaidAt: undefined, active: false, daysLeft: null });
   useEffect(() => {
     const active = isProActive(misc.paidAt);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setProStatus({
+      forPaidAt: misc.paidAt,
       active,
       daysLeft: active
         ? Math.max(1, Math.ceil((misc.paidAt! + PRO_DURATION_MS - Date.now()) / 86400000))
@@ -311,7 +317,7 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<StoreValue>(
     () => ({
-      hydrated,
+      hydrated: hydrated && proStatus.forPaidAt === misc.paidAt,
       strategy,
       simResult,
       simsRemaining: proStatus.active ? Infinity : Math.max(0, FREE_SIMS - misc.simsUsed),

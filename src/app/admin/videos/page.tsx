@@ -137,7 +137,7 @@ export default function AdminVideosPage() {
             </div>
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
+              onChange={(e) => setFilter(e.target.value as typeof filter)}
               className="px-4 py-2.5 rounded-lg border border-outline bg-slate text-chalk text-sm focus:outline-none focus:ring-1 focus:ring-signal"
             >
               <option value="all">All Status</option>

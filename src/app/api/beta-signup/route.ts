@@ -21,9 +21,20 @@ interface BetaSignupBody {
   notes?: string;
 }
 
+const MAX_FIELD_LENGTH = 200;
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function buildEmailHtml(name: string): string {
   return `
-    <p>Hi ${name},</p>
+    <p>Hi ${escapeHtml(name)},</p>
     <p>Thanks for joining the StratoBot beta. Here's your access code:</p>
     <p style="font-size:20px;font-weight:700;letter-spacing:0.05em;font-family:monospace;">${BETA_CODE}</p>
     <p>Enter it on the Unlock screen (after describing a strategy and running the free logic check) to get ${PRO_DAYS} days of unlimited simulations, strategies, and downloads — no charge.</p>
@@ -45,6 +56,9 @@ export async function POST(req: NextRequest) {
 
   if (!name || !email || !experience) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if ([name, email, experience].some((f) => f.length > MAX_FIELD_LENGTH)) {
+    return NextResponse.json({ error: "Field too long" }, { status: 400 });
   }
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Invalid email address" }, { status: 400 });

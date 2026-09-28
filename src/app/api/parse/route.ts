@@ -17,6 +17,7 @@ export const runtime = "nodejs";
 
 const MODEL = "claude-sonnet-5";
 const TOOL_NAME = "extract_strategy_blocks";
+const MAX_PROMPT_CHARS = 4000;
 
 interface RawBlock {
   blockId?: string;
@@ -135,6 +136,10 @@ export async function POST(req: NextRequest) {
   }
   if (typeof prompt !== "string" || !prompt.trim()) {
     return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
+  }
+  // Every call is a paid LLM request; real strategy descriptions are a few sentences.
+  if (prompt.length > MAX_PROMPT_CHARS) {
+    return NextResponse.json({ fallback: true, reason: "prompt_too_long" });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;

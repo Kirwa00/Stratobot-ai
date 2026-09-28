@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
@@ -21,15 +21,31 @@ export default function DownloadPage() {
     if (!strategy || !paid) router.replace("/app");
   }, [hydrated, strategy, paid, router]);
 
-  if (!strategy) return null;
+  const composed = useMemo(() => (strategy ? composeStrategyFile(strategy) : null), [strategy]);
+
+  if (!strategy || !composed) return null;
 
   function handleDownload() {
-    if (!strategy) return;
+    if (!strategy || !composed?.ok) return;
     acceptDisclaimer();
-    const contents = composeStrategyFile(strategy);
-    const filename = `${strategy.name.toLowerCase().replace(/\s+/g, "-")}.mq5`;
-    downloadFile(filename, contents);
+    const slug = strategy.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    downloadFile(`${slug || "stratobot-ea"}.mq5`, composed.code);
     setDownloaded(true);
+  }
+
+  if (!composed.ok) {
+    return (
+      <div className="flex flex-col flex-1">
+        <Header back title="Can't build this bot yet" />
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-4">
+          <span className="material-symbols-outlined text-caution text-4xl">error</span>
+          <p className="text-sm text-chalk/80 leading-relaxed">{composed.error}</p>
+          <Button className="mt-4 w-full" onClick={() => router.push("/adjust")}>
+            Edit my strategy
+          </Button>
+        </main>
+      </div>
+    );
   }
 
   if (downloaded) {
@@ -81,6 +97,17 @@ export default function DownloadPage() {
             </li>
           ))}
         </ul>
+
+        {composed.notes.length > 0 && (
+          <div className="p-3 rounded-lg border border-caution bg-caution-bg/20">
+            <p className="text-xs font-semibold text-chalk mb-1.5">Before you run it</p>
+            <ul className="flex flex-col gap-1.5 text-xs text-chalk/80 leading-relaxed">
+              {composed.notes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <p className="text-sm text-chalk/60">This is not financial advice.</p>
 
