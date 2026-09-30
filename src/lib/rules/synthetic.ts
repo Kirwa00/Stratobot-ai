@@ -1,5 +1,6 @@
 import { execute, type Tick } from "./execute";
-import type { Candle } from "./interpret";
+import { Interpreter, type Candle } from "./interpret";
+import { explainEntry, explainExit, formatNumber } from "./explain";
 import { buildNodeTable } from "./nodes";
 import type { RuleStrategy, Timeframe, Value } from "./types";
 import type { SimulatedTrade, SimulationResult } from "../types";
@@ -133,19 +134,31 @@ export function simulateRules(rules: RuleStrategy, runIndex = 0): SimulationResu
     return i;
   };
 
+  // Entries are decided on the first tick of a bar, so the event's bar is the decision bar.
+  const interp = new Interpreter(rules, candles, { pip: PIP, serverGmtOffsetHours: 0 });
+  const decisionBar = (ms: number) => warmup + barOf(ms);
+
   const trades: SimulatedTrade[] = [];
   let current: SimulatedTrade | null = null;
-  let pendingDir: 1 | -1 = 1;
+  let stopMoved = false;
+  let pending: { dir: 1 | -1; why: string[] } | null = null;
   for (const e of events) {
-    if (e.kind === "place") pendingDir = e.dir;
-    if (e.kind === "open" || e.kind === "fill") {
-      const dir = e.kind === "open" ? e.dir : pendingDir;
-      current = { index: trades.length, candle: barOf(e.time), direction: dir > 0 ? "buy" : "sell", outcome: "open" };
+    if (e.kind === "place") pending = { dir: e.dir, why: explainEntry(interp, rules, decisionBar(e.time), e.dir) };
+    if (e.kind === "cancel") pending = null;
+    if (e.kind === "open" || (e.kind === "fill" && pending)) {
+      const dir = e.kind === "open" ? e.dir : pending!.dir;
+      const why = e.kind === "open" ? explainEntry(interp, rules, decisionBar(e.time), e.dir) : [...pending!.why, `Filled at ${formatNumber(e.price)}.`];
+      current = { index: trades.length, candle: barOf(e.time), direction: dir > 0 ? "buy" : "sell", outcome: "open", why };
       trades.push(current);
+      pending = null;
+      stopMoved = false;
     }
+    if (e.kind === "modify") stopMoved = true;
+    if (e.kind === "partial" && current) current.why = [...(current.why ?? []), `Closed ${e.lots} lots early at ${formatNumber(e.price)} (partial take profit).`];
     if (e.kind === "close" && current) {
       current.exitCandle = barOf(e.time);
       current.outcome = e.reason === "tp" ? "target" : e.reason === "sl" ? "stopped" : "closed";
+      current.exitWhy = explainExit(e.reason, e.price, stopMoved, rules);
       current = null;
     }
   }

@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { SimulationChart } from "@/components/SimulationChart";
+import { TradeList } from "@/components/TradeList";
 import { useStrategyStore, simsButtonLabel } from "@/lib/store";
 import { canTrade, hasManagedExit, simulationMessage, simulationStats } from "@/lib/simulate";
 
@@ -80,6 +81,8 @@ export default function SimulatePage() {
                   : "Add a Stop Loss, Take Profit, or Trailing Stop block to see how trades would have exited."}
               </p>
             )}
+
+            <TradeList trades={simResult.trades} />
 
             <div className="flex gap-2">
               <Button

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { CASES } from "../../../scripts/mt5/cases";
 import { EXAMPLES } from "./translate";
 import { simulateRules } from "./synthetic";
+import { NOT_MET } from "./explain";
 
 test("the rules logic check runs every verified case and example without throwing", () => {
   const all = [...Object.values(CASES), ...EXAMPLES.map((e) => e.output.rules!)];
@@ -28,4 +29,19 @@ test("the rules logic check is deterministic per run and differs between runs", 
   assert.deepEqual(a.trades, b.trades);
   assert.deepEqual(a.candles, b.candles);
   assert.notDeepEqual(simulateRules(rules, 4).candles, a.candles);
+});
+
+test("every simulated trade explains itself with rules that actually held", () => {
+  let explained = 0;
+  for (const rules of [...Object.values(CASES), ...EXAMPLES.map((e) => e.output.rules!)]) {
+    for (const run of [0, 1]) {
+      for (const t of simulateRules(rules, run).trades) {
+        assert.ok(t.why && t.why.length > 0);
+        for (const line of t.why) assert.ok(!line.includes(NOT_MET), line);
+        if (t.outcome !== "open") assert.ok(t.exitWhy);
+        explained++;
+      }
+    }
+  }
+  assert.ok(explained > 100);
 });

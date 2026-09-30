@@ -108,6 +108,10 @@ export interface SimulatedTrade {
   /** Candle where the exit rule resolved. Unset while `outcome` is "open". */
   exitCandle?: number;
   outcome: TradeOutcome;
+  /** Rule strategies only: the rules that held at entry, with the values the bot saw. */
+  why?: string[];
+  /** Rule strategies only: how the trade ended. */
+  exitWhy?: string;
 }
 
 export interface SimulationResult {
