@@ -105,8 +105,9 @@ export type StopSpec =
   /** multiple x ATR(period) of the last closed bar at the decision. */
   | { kind: "atr"; multiple: number; period: number }
   /** An absolute price from a rule value (e.g. the last swing low), read at the decision.
+   *  `atShort`, if given, is the price used for sells instead (e.g. the last swing high).
    *  If it's on the wrong side of the entry, the trade is skipped. */
-  | { kind: "level"; at: Value };
+  | { kind: "level"; at: Value; atShort?: Value };
 
 export type TargetSpec = StopSpec | { kind: "rr"; multiple: number };
 

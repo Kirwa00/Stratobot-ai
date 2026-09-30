@@ -9,6 +9,7 @@ import { ParameterSheet } from "@/components/ParameterSheet";
 import { getBlock } from "@/lib/blocks";
 import { CONFIDENCE_THRESHOLD } from "@/lib/types";
 import { useStrategyStore } from "@/lib/store";
+import { RulesReadbackScreen } from "./RulesReadbackScreen";
 
 export default function ReadbackPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function ReadbackPage() {
   }, [hydrated, strategy, router]);
 
   if (!strategy) return null;
+  if (strategy.rules || strategy.questions?.length) return <RulesReadbackScreen strategy={strategy} />;
 
   const active = strategy.blocks.find((b) => b.instanceId === activeInstanceId) ?? null;
   const lowConfidence = strategy.blocks.filter((b) => b.confidence < CONFIDENCE_THRESHOLD);

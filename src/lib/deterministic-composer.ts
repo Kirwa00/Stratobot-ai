@@ -7,6 +7,7 @@
 import { getBlock } from "./blocks";
 import { compileRules } from "./rules/compile-mql5";
 import { blocksToRules, hasContradictoryDirections } from "./rules/from-blocks";
+import { validateRules } from "./rules/validate";
 import type { Strategy } from "./types";
 
 export type ComposeResult =
@@ -14,6 +15,7 @@ export type ComposeResult =
   | { ok: false; error: string };
 
 export function composeMQL5FromStrategy(strategy: Strategy): ComposeResult {
+  if (strategy.rules) return composeFromRules(strategy);
   const blocks = (strategy.blocks ?? []).filter((b) => getBlock(b.blockId));
 
   if (!blocks.some((b) => getBlock(b.blockId)!.role !== "exit")) {
@@ -49,6 +51,30 @@ export function composeMQL5FromStrategy(strategy: Strategy): ComposeResult {
     notes.push("The News Filter uses MetaTrader's live economic calendar, which doesn't exist in the Strategy Tester, so backtests will ignore it.");
   }
 
+  const code = compileRules(rules, { name: strategy.name, id: strategy.id, updatedAt: strategy.updatedAt });
+  return { ok: true, code, notes };
+}
+
+/** Strategies the AI translator built in the rule language. Re-validated here
+ *  because the stored strategy comes back from the browser's localStorage. */
+function composeFromRules(strategy: Strategy): ComposeResult {
+  const v = validateRules(strategy.rules);
+  if (!v.ok) {
+    return {
+      ok: false,
+      error: "This strategy's saved rules are damaged or out of date, so no bot was built. Describe your strategy again and try once more.",
+    };
+  }
+  const rules = v.rules;
+  const notes = [...v.warnings];
+  if (rules.directionFromInput) {
+    notes.push(
+      "None of your rules decides buy vs. sell, so the bot won't trade until you set its \"If no rule picks a direction\" input to Buy or Sell in MetaTrader."
+    );
+  }
+  for (const u of strategy.unmapped ?? []) {
+    notes.push(`Not built: "${u.text}"${u.reason ? ` (${u.reason})` : ""}. The bot does not do this.`);
+  }
   const code = compileRules(rules, { name: strategy.name, id: strategy.id, updatedAt: strategy.updatedAt });
   return { ok: true, code, notes };
 }

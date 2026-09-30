@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { SimulationChart } from "@/components/SimulationChart";
 import { useStrategyStore, simsButtonLabel } from "@/lib/store";
-import { simulationMessage, simulationStats } from "@/lib/simulate";
+import { canTrade, hasManagedExit, simulationMessage, simulationStats } from "@/lib/simulate";
 
 export default function SimulatePage() {
   const router = useRouter();
@@ -19,20 +19,22 @@ export default function SimulatePage() {
 
   if (!strategy) return null;
 
-  const message = simResult ? simulationMessage(simResult, strategy.blocks.length) : null;
-  const stats = simResult ? simulationStats(simResult, strategy.blocks) : null;
+  const tradable = canTrade(strategy);
+  const message = simResult ? simulationMessage(simResult, tradable, Boolean(strategy.rules)) : null;
+  const stats = simResult ? simulationStats(simResult, hasManagedExit(strategy)) : null;
+  const editPath = strategy.rules ? "/app#edit" : "/adjust";
 
   return (
     <div className="flex flex-col flex-1">
       <Header back title="Simulation" />
-      <StrategyStrip blocks={strategy.blocks} />
+      {!strategy.rules && <StrategyStrip blocks={strategy.blocks} />}
 
       <main className="flex-1 overflow-y-auto px-4 py-6 pb-32 flex flex-col gap-5">
         {!simResult ? (
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-sm text-chalk/60">No run yet for this strategy.</p>
             <Button
-              disabled={strategy.blocks.length === 0 || simsRemaining === 0}
+              disabled={!tradable || simsRemaining === 0}
               onClick={() => runSim()}
             >
               {simsButtonLabel("Run simulation", simsRemaining)}
@@ -65,10 +67,17 @@ export default function SimulatePage() {
               </div>
             )}
 
+            {stats && stats.closed > 0 && (
+              <p className="text-xs text-chalk/50 -mt-2">
+                {stats.closed} closed by your time limit or opposite-signal rule.
+              </p>
+            )}
+
             {stats && stats.total > 0 && !stats.hasManagedExit && (
               <p className="text-xs text-chalk/50 -mt-2">
-                Add a Stop Loss, Take Profit, or Trailing Stop block to see how trades would have
-                exited.
+                {strategy.rules
+                  ? "Your strategy has no exit rules, so trades stay open. Add a stop loss or take profit to your description to see how trades would close."
+                  : "Add a Stop Loss, Take Profit, or Trailing Stop block to see how trades would have exited."}
               </p>
             )}
 
@@ -95,7 +104,10 @@ export default function SimulatePage() {
             <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
               <p className="text-sm text-chalk/80 leading-relaxed">
                 This is a logic check, not a backtest. It shows whether your rules fire — not
-                whether they make money. Test on a demo account before going live.
+                whether they make money.{" "}
+                {strategy.rules &&
+                  "Your exact rules ran through the same trade logic as the bot, on a made-up price path, not real market data. "}
+                Test on a demo account before going live.
               </p>
             </div>
           </>
@@ -103,7 +115,7 @@ export default function SimulatePage() {
       </main>
 
       <div className="sticky bottom-0 flex gap-3 px-4 py-4 border-t border-outline bg-ink safe-bottom">
-        <Button variant="ghost" className="flex-1" onClick={() => router.push("/adjust")}>
+        <Button variant="ghost" className="flex-1" onClick={() => router.push(editPath)}>
           Adjust
         </Button>
         <Button

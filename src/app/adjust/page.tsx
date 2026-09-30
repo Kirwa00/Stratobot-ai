@@ -93,6 +93,27 @@ function AdjustInner() {
 
   if (!strategy) return null;
 
+  if (strategy.rules) {
+    return (
+      <div className="flex flex-col flex-1">
+        <Header back title="Your strategy" />
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-4">
+          <span className="material-symbols-outlined text-4xl text-chalk/20">edit_note</span>
+          <p className="text-sm text-chalk/70 leading-relaxed max-w-sm">
+            This strategy was built from your description, so the block editor can&apos;t change it. Edit the
+            description instead, or start over with blocks.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="ghost" onClick={startFromBlocks}>
+              Start over with blocks
+            </Button>
+            <Button onClick={() => router.push("/app#edit")}>Edit description</Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   const entryBlocks = strategy.blocks.filter((b) => getBlock(b.blockId)?.role !== "exit");
   const exitBlocks = strategy.blocks.filter((b) => getBlock(b.blockId)?.role === "exit");
   const active = strategy.blocks.find((b) => b.instanceId === activeInstanceId) ?? null;

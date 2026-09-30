@@ -1,5 +1,6 @@
 import { getBlock } from "./blocks";
-import type { BlockInstance, Candle, SimulationResult, SimulatedTrade, TradeOutcome } from "./types";
+import { simulateRules } from "./rules/synthetic";
+import type { BlockInstance, Candle, SimulationResult, SimulatedTrade, Strategy, TradeOutcome } from "./types";
 
 // Mock "logic check" simulator — Engineering Plan Phase 4 / UX Plan §5.4.
 // This deliberately does NOT compute P&L. It draws a plausible OHLC price
@@ -164,22 +165,47 @@ export function runSimulation(blocks: BlockInstance[], runIndex = 0): Simulation
   return { candles, trades, runAt: Date.now() };
 }
 
+/** One logic-check run. Rule strategies (AI-translated) run their real rules
+ *  through the verified trade engine on a synthetic path (rules/synthetic.ts);
+ *  block strategies use the block mock above. */
+export function runStrategySimulation(strategy: Strategy, runIndex = 0): SimulationResult {
+  return strategy.rules ? simulateRules(strategy.rules, runIndex) : runSimulation(strategy.blocks, runIndex);
+}
+
+/** Whether anything in the strategy can open a trade. */
+export function canTrade(strategy: Strategy): boolean {
+  if (strategy.rules) return true;
+  return strategy.blocks.some((b) => getBlock(b.blockId)?.role !== "exit");
+}
+
+/** Whether the strategy has an exit the check can resolve trades against. */
+export function hasManagedExit(strategy: Strategy): boolean {
+  if (strategy.rules) {
+    const x = strategy.rules.exits;
+    return Boolean(x.stopLoss || x.takeProfit || x.trailing || x.closeAfterBars || x.closeOnOpposite);
+  }
+  return buildExitPlan(strategy.blocks).mode !== "none";
+}
+
 export interface SimulationStats {
   total: number;
   buys: number;
   sells: number;
   targets: number;
   stopped: number;
+  /** Closed by a rule (time limit or opposite signal). */
+  closed: number;
   open: number;
   hasManagedExit: boolean;
   longestGap: number;
 }
 
-export function simulationStats(result: SimulationResult, blocks: BlockInstance[]): SimulationStats {
+export function simulationStats(result: SimulationResult, managedExit: boolean): SimulationStats {
   const { trades, candles } = result;
   const buys = trades.filter((t) => t.direction === "buy").length;
   const targets = trades.filter((t) => t.outcome === "target").length;
   const stopped = trades.filter((t) => t.outcome === "stopped").length;
+  const closed = trades.filter((t) => t.outcome === "closed").length;
   const open = trades.filter((t) => t.outcome === "open").length;
 
   let longestGap = 0;
@@ -194,8 +220,9 @@ export function simulationStats(result: SimulationResult, blocks: BlockInstance[
     sells: trades.length - buys,
     targets,
     stopped,
+    closed,
     open,
-    hasManagedExit: buildExitPlan(blocks).mode !== "none",
+    hasManagedExit: managedExit,
     longestGap,
   };
 }
@@ -210,6 +237,7 @@ export interface AggregateStats {
   sells: number;
   targets: number;
   stopped: number;
+  closed: number;
   open: number;
   hasManagedExit: boolean;
 }
@@ -220,9 +248,9 @@ export interface AggregateStats {
  *  of synthetic paths, so a trader can see whether one run was a fluke. */
 export function aggregateSimulationStats(
   results: SimulationResult[],
-  blocks: BlockInstance[]
+  managedExit: boolean
 ): AggregateStats {
-  const perRun = results.map((r) => simulationStats(r, blocks));
+  const perRun = results.map((r) => simulationStats(r, managedExit));
   const totalTrades = perRun.reduce((s, p) => s + p.total, 0);
   const counts = perRun.map((p) => p.total);
   return {
@@ -235,17 +263,19 @@ export function aggregateSimulationStats(
     sells: perRun.reduce((s, p) => s + p.sells, 0),
     targets: perRun.reduce((s, p) => s + p.targets, 0),
     stopped: perRun.reduce((s, p) => s + p.stopped, 0),
+    closed: perRun.reduce((s, p) => s + p.closed, 0),
     open: perRun.reduce((s, p) => s + p.open, 0),
     hasManagedExit: perRun[0]?.hasManagedExit ?? false,
   };
 }
 
-export function simulationMessage(result: SimulationResult, blockCount: number): {
+export function simulationMessage(result: SimulationResult, tradable: boolean, fromRules = false): {
   headline: string;
   detail?: string;
 } {
   const n = result.trades.length;
-  if (blockCount === 0) {
+  const candles = result.candles.length;
+  if (!tradable) {
     return {
       headline: "Nothing to simulate yet",
       detail: "Add at least one entry block to run a check.",
@@ -254,14 +284,16 @@ export function simulationMessage(result: SimulationResult, blockCount: number):
   if (n === 0) {
     return {
       headline: "Your rules never triggered on this data.",
-      detail: "Usually one condition is too strict — try widening the killzone or removing a filter.",
+      detail: fromRules
+        ? "Each run uses a new made-up price path, so run it again to see if that's typical. If it never fires, one condition is probably too strict."
+        : "Usually one condition is too strict — try widening the killzone or removing a filter.",
     };
   }
-  if (n >= 30) {
+  if (n >= candles * 0.3) {
     return {
-      headline: `${n} trades over ${CANDLE_COUNT} candles`,
+      headline: `${n} trades over ${candles} candles`,
       detail: "Your rules fired on almost every candle. Usually a filter is missing.",
     };
   }
-  return { headline: `${n} trades over ${CANDLE_COUNT} candles` };
+  return { headline: `${n === 1 ? "1 trade" : `${n} trades`} over ${candles} candles` };
 }

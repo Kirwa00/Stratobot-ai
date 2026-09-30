@@ -11,8 +11,10 @@ import {
 } from "react";
 import { getBlock } from "./blocks";
 import { parsePrompt, newStrategyName } from "./parser";
-import { runSimulation } from "./simulate";
-import type { BlockInstance, SimulationResult, Strategy } from "./types";
+import { runStrategySimulation } from "./simulate";
+import { describeRules, readbackText } from "./rules/describe";
+import { validateRules } from "./rules/validate";
+import type { BlockInstance, ClarifyingQuestion, SimulationResult, Strategy, UnmappedClause } from "./types";
 import { FREE_SIMS, PRO_DAYS } from "./constants";
 
 const STORAGE_KEY = "stratobot.strategy.v1";
@@ -49,6 +51,49 @@ function emptyStrategy(rawPrompt = ""): Strategy {
   };
 }
 
+type Answer = { question: string; answer: string };
+
+interface TranslateResponse {
+  status: "ready" | "needs_answers" | "not_a_strategy";
+  rules: unknown;
+  warnings: string[];
+  questions: ClarifyingQuestion[];
+  assumptions: string[];
+  unmapped: UnmappedClause[];
+}
+
+/** Ask the AI translator. null = unavailable (no key, outage, invalid output): use the block parser. */
+async function translate(prompt: string, answers: Answer[]): Promise<Partial<Strategy> | null> {
+  try {
+    const res = await fetch("/api/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, answers }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as TranslateResponse | { fallback: true };
+    if ("fallback" in data) return null;
+    if (data.status === "not_a_strategy") {
+      return { readback: "", blocks: [], rules: undefined, unmapped: [], questions: [], assumptions: [], warnings: [] };
+    }
+    // Re-validate: the readback and the compiled bot must come from rules this code accepts.
+    const v = validateRules(data.rules);
+    if (!v.ok) return null;
+    return {
+      rules: v.rules,
+      blocks: [],
+      readback: readbackText(describeRules(v.rules)),
+      warnings: v.warnings,
+      questions: data.questions ?? [],
+      assumptions: data.assumptions ?? [],
+      unmapped: data.unmapped ?? [],
+      answers,
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface MiscState {
   simsUsed: number;
   paidAt: number | null;
@@ -69,6 +114,10 @@ interface StoreValue {
   parsing: boolean;
 
   startFromPrompt: (rawPrompt: string) => Promise<void>;
+  /** Re-translate with answers to the translator's questions. Returns false if the translator is unavailable. */
+  answerQuestions: (answers: Answer[]) => Promise<boolean>;
+  /** Keep the draft rules as they are and drop the open questions. */
+  skipQuestions: () => void;
   startFromBlocks: () => void;
   loadPreset: (rawPrompt: string, name?: string) => void;
   addBlock: (blockId: string) => void;
@@ -126,6 +175,14 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
     setParsing(true);
     const base = emptyStrategy(rawPrompt);
 
+    const translated = await translate(rawPrompt, []);
+    if (translated) {
+      setStrategy({ ...base, ...translated });
+      setSimResult(null);
+      setParsing(false);
+      return;
+    }
+
     let parsed: ReturnType<typeof parsePrompt> | null = null;
     try {
       const res = await fetch("/api/parse", {
@@ -150,6 +207,25 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
     });
     setSimResult(null);
     setParsing(false);
+  }, []);
+
+  const answerQuestions = useCallback(
+    async (answers: Answer[]) => {
+      if (!strategy) return false;
+      setParsing(true);
+      const all = [...(strategy.answers ?? []), ...answers];
+      const translated = await translate(strategy.rawPrompt, all);
+      setParsing(false);
+      if (!translated) return false;
+      setStrategy((prev) => (prev ? { ...prev, ...translated, updatedAt: Date.now() } : prev));
+      setSimResult(null);
+      return true;
+    },
+    [strategy]
+  );
+
+  const skipQuestions = useCallback(() => {
+    setStrategy((prev) => (prev ? { ...prev, questions: [], updatedAt: Date.now() } : prev));
   }, []);
 
   const startFromBlocks = useCallback(() => {
@@ -242,7 +318,7 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const runSim = useCallback(() => {
     setStrategy((prev) => {
       if (!prev) return prev;
-      const result = runSimulation(prev.blocks, misc.simsUsed);
+      const result = runStrategySimulation(prev, misc.simsUsed);
       setSimResult(result);
       return prev;
     });
@@ -264,7 +340,7 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       if (n === 0) return [];
       const results: SimulationResult[] = [];
       for (let i = 0; i < n; i++) {
-        results.push(runSimulation(strategy.blocks, misc.simsUsed + i));
+        results.push(runStrategySimulation(strategy, misc.simsUsed + i));
       }
       setMisc((m) => ({ ...m, simsUsed: m.simsUsed + n }));
       return results;
@@ -326,6 +402,8 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       disclaimerAccepted: misc.disclaimerAccepted,
       parsing,
       startFromPrompt,
+      answerQuestions,
+      skipQuestions,
       startFromBlocks,
       loadPreset,
       addBlock,
@@ -346,6 +424,8 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       proStatus,
       parsing,
       startFromPrompt,
+      answerQuestions,
+      skipQuestions,
       startFromBlocks,
       runBatchSim,
       loadPreset,

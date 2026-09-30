@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { useStrategyStore } from "@/lib/store";
-import { aggregateSimulationStats, type AggregateStats } from "@/lib/simulate";
+import { aggregateSimulationStats, canTrade, hasManagedExit, type AggregateStats } from "@/lib/simulate";
 
 // Runs many independent logic-check passes and aggregates them — same
 // honest engine as /simulate (src/lib/simulate.ts), just a bigger sample so
@@ -25,7 +25,7 @@ export default function BacktestPage() {
   const [stats, setStats] = useState<AggregateStats | null>(null);
   const [ranWith, setRanWith] = useState(0);
 
-  if (!strategy || strategy.blocks.length === 0) {
+  if (!strategy || !canTrade(strategy)) {
     return (
       <div className="flex flex-col flex-1">
         <Header back title="Extended Check" />
@@ -46,7 +46,7 @@ export default function BacktestPage() {
     // work itself (N synthetic paths) is cheap and synchronous.
     window.setTimeout(() => {
       const results = runBatchSim(n);
-      setStats(aggregateSimulationStats(results, strategy!.blocks));
+      setStats(aggregateSimulationStats(results, hasManagedExit(strategy!)));
       setRanWith(results.length);
       setIsRunning(false);
     }, 500);
@@ -59,7 +59,9 @@ export default function BacktestPage() {
         <div className="p-4 rounded-lg border border-outline bg-slate">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-chalk">{strategy.name}</h3>
-            <span className="text-xs text-chalk/50">{strategy.blocks.length} blocks</span>
+            <span className="text-xs text-chalk/50">
+              {strategy.rules ? "Built from your description" : `${strategy.blocks.length} blocks`}
+            </span>
           </div>
           <p className="text-xs text-chalk/60 line-clamp-2">{strategy.readback}</p>
         </div>
@@ -146,16 +148,22 @@ export default function BacktestPage() {
                   <StatTile label="Stopped out" value={stats.stopped} tone="sell" />
                   <StatTile label="Still open" value={stats.open} />
                 </div>
+                {stats.closed > 0 && (
+                  <p className="text-xs text-chalk/50 mt-2">
+                    {stats.closed} closed by your time limit or opposite-signal rule.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-xs text-chalk/50">
-                Add a Stop Loss, Take Profit, or Trailing Stop block to see how trades would have
-                exited across these runs.
+                {strategy.rules
+                  ? "Your strategy has no exit rules, so trades stay open across these runs."
+                  : "Add a Stop Loss, Take Profit, or Trailing Stop block to see how trades would have exited across these runs."}
               </p>
             )}
 
             <div className="flex gap-2">
-              <Button variant="ghost" className="flex-1" onClick={() => router.push("/adjust")}>
+              <Button variant="ghost" className="flex-1" onClick={() => router.push(strategy.rules ? "/app#edit" : "/adjust")}>
                 <span className="material-symbols-outlined text-sm mr-2">edit</span>
                 Edit strategy
               </Button>

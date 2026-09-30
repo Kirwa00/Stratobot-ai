@@ -148,7 +148,7 @@ export function execute(s: RuleStrategy, candles: Candle[], ticks: Tick[], opts:
       const a = atrAt(spec.period, i);
       return Number.isFinite(a) && a > 0 ? spec.multiple * a : -1;
     }
-    const lv = interp.value(spec.at, i, 0);
+    const lv = interp.value(dir < 0 && spec.atShort ? spec.atShort : spec.at, i, 0);
     if (!Number.isFinite(lv) || dir * (pts(entry) - pts(lv)) <= 0) return -1;
     return Math.abs(entry - lv);
   }
@@ -162,7 +162,7 @@ export function execute(s: RuleStrategy, candles: Candle[], ticks: Tick[], opts:
       const a = atrAt(spec.period, i);
       return Number.isFinite(a) && a > 0 ? spec.multiple * a : -1;
     }
-    const lv = interp.value(spec.at, i, 0);
+    const lv = interp.value(dir < 0 && spec.atShort ? spec.atShort : spec.at, i, 0);
     if (!Number.isFinite(lv) || dir * (pts(lv) - pts(entry)) <= 0) return -1;
     return Math.abs(lv - entry);
   }

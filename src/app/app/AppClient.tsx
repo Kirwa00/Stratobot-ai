@@ -69,7 +69,7 @@ type SpeechRecognitionLike = {
 
 export function AppClient() {
   const router = useRouter();
-  const { startFromPrompt, parsing } = useStrategyStore();
+  const { startFromPrompt, parsing, hydrated, strategy } = useStrategyStore();
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [canListen, setCanListen] = useState(false);
@@ -86,6 +86,13 @@ export function AppClient() {
       setShowHowItWorks(true);
     }
   }, []);
+
+  // "Edit description" elsewhere links to /app#edit: start from the current description.
+  const editPrompt = hydrated && window.location.hash === "#edit" ? strategy?.rawPrompt : undefined;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (editPrompt) setText(editPrompt);
+  }, [editPrompt]);
 
   function dismissHowItWorks() {
     setShowHowItWorks(false);

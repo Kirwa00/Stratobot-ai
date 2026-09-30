@@ -1,3 +1,5 @@
+import type { RuleStrategy } from "./rules/types";
+
 // Core domain types for the StratoBot AI trader-facing app.
 // These model the "Blueprint" concept from Engineering Plan v1.2 §1:
 // trader language -> schema-validated blueprint -> (in production) deterministic
@@ -56,6 +58,15 @@ export interface BlockInstance {
 
 export interface UnmappedClause {
   text: string;
+  /** Why it couldn't be built (AI translator only). */
+  reason?: string;
+}
+
+/** A question the AI translator asked instead of guessing. */
+export interface ClarifyingQuestion {
+  id: string;
+  question: string;
+  options: string[];
 }
 
 export interface Strategy {
@@ -65,6 +76,16 @@ export interface Strategy {
   readback: string;
   blocks: BlockInstance[];
   unmapped: UnmappedClause[];
+  /** Set when the AI translator built this strategy in the rule language. The
+   *  composer compiles these directly and `blocks` is empty. */
+  rules?: RuleStrategy;
+  /** Translator notes shown with the readback. */
+  assumptions?: string[];
+  warnings?: string[];
+  /** Unanswered clarifying questions; the rules are a draft until these are answered or skipped. */
+  questions?: ClarifyingQuestion[];
+  /** Questions answered so far, sent back with the prompt on re-translation. */
+  answers?: { question: string; answer: string }[];
   createdAt: number;
   updatedAt: number;
 }
@@ -77,7 +98,8 @@ export interface Candle {
 }
 
 /** How a trade's configured exit (if any) resolved against the synthetic path. */
-export type TradeOutcome = "target" | "stopped" | "open";
+/** "closed" = closed by a rule (time limit or opposite signal), not by the stop or target. */
+export type TradeOutcome = "target" | "stopped" | "closed" | "open";
 
 export interface SimulatedTrade {
   index: number;

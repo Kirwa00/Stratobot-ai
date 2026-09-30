@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
+import { RulesReadback } from "@/components/RulesReadback";
 import { useStrategyStore } from "@/lib/store";
 import { BETA_CODE, PRICE_KES } from "@/lib/constants";
 
@@ -65,10 +66,14 @@ export default function UnlockPage() {
           <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
             What it does
           </p>
-          <p className="text-sm text-chalk/85 leading-relaxed">{strategy.readback}</p>
+          {strategy.rules ? (
+            <RulesReadback rules={strategy.rules} />
+          ) : (
+            <p className="text-sm text-chalk/85 leading-relaxed">{strategy.readback}</p>
+          )}
         </div>
 
-        <StrategyStrip blocks={strategy.blocks} />
+        {!strategy.rules && <StrategyStrip blocks={strategy.blocks} />}
 
         <div className="rounded-lg border border-outline bg-slate px-4 py-4">
           <div className="flex items-baseline justify-between mb-1">

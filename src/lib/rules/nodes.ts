@@ -20,8 +20,9 @@ export interface NodeTable {
 /** Values that order placement and exits read (pending prices, stop levels, ATR distances). */
 export function tradeValues(s: RuleStrategy): Value[] {
   const out: Value[] = [];
-  const spec = (x: { kind: string; at?: Value; period?: number } | undefined) => {
+  const spec = (x: { kind: string; at?: Value; atShort?: Value; period?: number } | undefined) => {
     if (x?.kind === "level" && x.at) out.push(x.at);
+    if (x?.kind === "level" && x.atShort) out.push(x.atShort);
     if (x?.kind === "atr" && x.period) out.push(atrValue(x.period));
   };
   if (s.entry?.long) out.push(s.entry.long.at);

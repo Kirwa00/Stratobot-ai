@@ -153,6 +153,15 @@ const TRADE_CASES: Record<string, RuleStrategy> = {
     exits: { stopLoss: { kind: "level", at: swingLow }, takeProfit: { kind: "pips", pips: 30 } },
     sizing: { riskPercent: 1 },
   }),
+  trade_level_sides: rules({
+    long: [{ kind: "cross", a: close, dir: "above", b: { kind: "ma", method: "ema", period: 21 } }],
+    short: [{ kind: "cross", a: close, dir: "below", b: { kind: "ma", method: "ema", period: 21 } }],
+    exits: {
+      stopLoss: { kind: "level", at: swingLow, atShort: swingHigh },
+      takeProfit: { kind: "level", at: { kind: "highest", bars: 50 }, atShort: { kind: "lowest", bars: 50 } },
+    },
+    sizing: { riskPercent: 1 },
+  }),
   trade_limit_pullback: rules({
     long: maLong,
     short: maShort,

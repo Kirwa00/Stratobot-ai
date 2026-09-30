@@ -1128,6 +1128,8 @@ function compileTrading(s: RuleStrategy, V: (v: Value) => string) {
   const x = s.exits;
   const inputs: string[] = [];
   const atrCall = (period: number) => `${V(atrValue(period))}(0)`;
+  const levelAt = (spec: { at: Value; atShort?: Value }) =>
+    spec.atShort ? `dir > 0 ? ${V(spec.at)}(0) : ${V(spec.atShort)}(0)` : `${V(spec.at)}(0)`;
 
   function stopBody(spec: StopSpec | undefined): string {
     if (spec?.kind === "atr") {
@@ -1137,7 +1139,7 @@ function compileTrading(s: RuleStrategy, V: (v: Value) => string) {
    return StratoOk(a) && a > 0 ? InpStopLossAtr * a : -1;`;
     }
     if (spec?.kind === "level") {
-      return `double lv = ${V(spec.at)}(0);
+      return `double lv = ${levelAt(spec)};
    if (!StratoOk(lv) || dir * (StratoPts(entry) - StratoPts(lv)) <= 0) return -1;
    return MathAbs(entry - lv);`;
     }
@@ -1157,7 +1159,7 @@ function compileTrading(s: RuleStrategy, V: (v: Value) => string) {
    return StratoOk(a) && a > 0 ? InpTakeProfitAtr * a : -1;`;
     }
     if (spec?.kind === "level") {
-      return `double lv = ${V(spec.at)}(0);
+      return `double lv = ${levelAt(spec)};
    if (!StratoOk(lv) || dir * (StratoPts(lv) - StratoPts(entry)) <= 0) return -1;
    return MathAbs(lv - entry);`;
     }
