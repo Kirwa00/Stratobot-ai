@@ -1,6 +1,16 @@
 import { SAR_WINDOW } from "./indicators";
-import { buildNodeTable, stableKey } from "./nodes";
-import type { Condition, RuleStrategy, Session, Timeframe, Value } from "./types";
+import { atrValue, buildNodeTable, stableKey } from "./nodes";
+import type {
+  Condition,
+  PendingEntry,
+  RuleStrategy,
+  Session,
+  StopSpec,
+  TargetSpec,
+  Timeframe,
+  TrailSpec,
+  Value,
+} from "./types";
 
 // Compiles a RuleStrategy into a complete MQL5 Expert Advisor. The emitted
 // code implements the semantics in types.ts; interpret.ts is the reference
@@ -341,8 +351,10 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
   const generated = meta.updatedAt && Number.isFinite(meta.updatedAt) ? new Date(meta.updatedAt).toISOString() : "";
   const tfDefault = s.timeframe === "chart" ? "PERIOD_CURRENT" : `PERIOD_${s.timeframe}`;
   const lots = s.sizing.fixedLots ?? 0.1;
-  const maxLots = s.sizing.riskPercent && s.sizing.fixedLots ? s.sizing.fixedLots : 0;
+  const riskSized = Boolean(s.sizing.riskPercent || s.sizing.riskMoney);
+  const maxLots = riskSized && s.sizing.fixedLots ? s.sizing.fixedLots : 0;
   const news = s.guards.news === "high" ? "High impact" : s.guards.news === "all" ? "All" : "Off";
+  const trading = compileTrading(s, V);
 
   return `//+------------------------------------------------------------------+
 //| StratoBot AI - Generated Expert Advisor
@@ -360,15 +372,20 @@ export function compileRules(s: RuleStrategy, meta: CompileMeta): string {
 
 input ENUM_TIMEFRAMES InpTimeframe = ${tfDefault}; // Timeframe the rules run on
 input long   InpMagic = ${magicNumber(meta.id)}; // Magic number (identifies this EA's trades)
-input double InpLots = ${lots}; // Lot size${s.sizing.riskPercent ? " (used when risk sizing can't apply)" : ""}
+input double InpLots = ${lots}; // Lot size${riskSized ? " (used when risk sizing can't apply)" : ""}
 input double InpRiskPercent = ${s.sizing.riskPercent ?? 0}; // Risk per trade, % of balance (0 = off; needs a stop loss)
+input double InpRiskMoney = ${s.sizing.riskMoney ?? 0}; // Risk per trade, account currency (0 = off; overrides %)
 input double InpMaxLots = ${maxLots}; // Largest lot size risk sizing may use (0 = no cap)
-input double InpStopLossPips = ${x.stopLossPips ?? 0}; // Stop loss, pips (0 = none)
-input double InpTakeProfitPips = ${x.takeProfitPips ?? 0}; // Take profit, pips (0 = none)
-input double InpTrailingPips = ${x.trailingPips ?? 0}; // Trailing stop distance, pips (0 = off)
+${trading.inputs.join("\n")}
 input double InpBreakEvenPips = ${x.breakEvenPips ?? 0}; // Move stop to entry after this profit, pips (0 = off)
+input int    InpCloseAfterBars = ${x.closeAfterBars ?? 0}; // Close the trade after this many bars (0 = off)
+input bool   InpCloseOnOpposite = ${x.closeOnOpposite ? "true" : "false"}; // Close when the opposite entry signal fires
+input double InpPartialAtR = ${x.partial?.atR ?? 0}; // Close part of the trade at this multiple of the initial risk (0 = off)
+input double InpPartialFraction = ${x.partial?.fraction ?? 0.5}; // Fraction of the position to close there
 input double InpMinRewardRisk = ${s.guards.minRewardRisk ?? 0}; // Minimum take-profit / stop-loss ratio (0 = off)
 input double InpMaxDailyLossPercent = ${s.guards.maxDailyLossPercent ?? 0}; // Stop new trades after losing this % today (0 = off)
+input int    InpMaxTradesPerDay = ${s.guards.maxTradesPerDay ?? 0}; // Most entries per server day (0 = no limit)
+input double InpMaxSpreadPips = ${s.guards.maxSpreadPips ?? 0}; // Skip entries while the spread is wider than this, pips (0 = off)
 input string InpNewsFilter = "${news}"; // Pause around news: Off, High impact, All
 ${noDirection ? `input string InpNoSignalDirection = "Skip"; // If no rule picks a direction: Skip, Buy, Sell\n` : ""}input bool   InpAutoGmtOffset = true; // Detect the broker's GMT offset automatically (live trading only)
 input int    InpServerGmtOffsetHours = 2; // Broker server time minus GMT, hours (Strategy Tester, or when auto is off)
@@ -380,6 +397,8 @@ CTrade trade;
 datetime g_lastBar = 0;
 datetime g_lastWarnBar = 0;
 int g_log = INVALID_HANDLE;
+int g_trades = INVALID_HANDLE;
+int g_ticks = INVALID_HANDLE;
 ${[...handleIds.values()].map((n) => `int H${n} = INVALID_HANDLE;`).join("\n")}
 
 //+------------------------------------------------------------------+
@@ -548,14 +567,6 @@ bool IsOwnPosition() {
    return PositionGetString(POSITION_SYMBOL) == _Symbol && PositionGetInteger(POSITION_MAGIC) == InpMagic;
 }
 
-int CountOwnPositions() {
-   int count = 0;
-   for (int i = PositionsTotal() - 1; i >= 0; i--) {
-      ulong ticket = PositionGetTicket(i);
-      if (ticket > 0 && PositionSelectByTicket(ticket) && IsOwnPosition()) count++;
-   }
-   return count;
-}
 
 //+------------------------------------------------------------------+
 //| Strategy rules                                                   |
@@ -628,18 +639,38 @@ bool StratoNewsOk() {
    return true;
 }
 
-bool StratoRewardRiskOk() {
-   if (InpMinRewardRisk <= 0 || InpStopLossPips <= 0 || InpTakeProfitPips <= 0) return true;
-   if (InpTakeProfitPips / InpStopLossPips + 1e-9 < InpMinRewardRisk) {
-      StratoWarn("take profit / stop loss is below the minimum reward:risk, so no trade was opened");
-      return false;
+int StratoTradesToday() {
+   MqlDateTime t;
+   TimeToStruct(TimeCurrent(), t);
+   t.hour = 0;
+   t.min = 0;
+   t.sec = 0;
+   if (!HistorySelect(StructToTime(t), TimeCurrent())) return 0;
+   int count = 0;
+   for (int i = HistoryDealsTotal() - 1; i >= 0; i--) {
+      ulong deal = HistoryDealGetTicket(i);
+      if (deal > 0 && HistoryDealGetInteger(deal, DEAL_MAGIC) == InpMagic && HistoryDealGetInteger(deal, DEAL_ENTRY) == DEAL_ENTRY_IN) count++;
    }
-   return true;
+   return count;
 }
 
 //+------------------------------------------------------------------+
 //| Orders and exits                                                 |
 //+------------------------------------------------------------------+
+long StratoPts(double price) {
+   return (long)MathRound(price / _Point);
+}
+
+// A price distance in whole points. Exact half-point ties (common: an ATR is an average of
+// whole-point ranges) round away from the entry, independent of floating-point noise.
+long StratoDistPts(double distance) {
+   return (long)MathFloor(distance / _Point + 0.5 + 1e-6);
+}
+
+long StratoPipPts() {
+   return (_Digits == 3 || _Digits == 5) ? 10 : 1;
+}
+
 double NormalizeLots(double lots) {
    double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
    double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
@@ -651,69 +682,198 @@ double NormalizeLots(double lots) {
    return NormalizeDouble(lots, 8);
 }
 
-double StratoLots() {
+// Lot size for a stop this far from the entry (0 = no stop).
+double StratoLots(double stopDistance) {
    double lots = InpLots;
    double tickValue = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
    double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-   double stopDistance = InpStopLossPips * StratoPip();
-   if (InpRiskPercent > 0 && stopDistance > 0 && tickValue > 0 && tickSize > 0) {
-      double riskMoney = AccountInfoDouble(ACCOUNT_BALANCE) * InpRiskPercent / 100.0;
-      lots = riskMoney / ((stopDistance / tickSize) * tickValue);
+   double risk = InpRiskMoney > 0 ? InpRiskMoney : (InpRiskPercent > 0 ? AccountInfoDouble(ACCOUNT_BALANCE) * InpRiskPercent / 100.0 : 0);
+   if (risk > 0 && stopDistance > 0 && tickValue > 0 && tickSize > 0) {
+      lots = risk / ((stopDistance / tickSize) * tickValue);
       if (InpMaxLots > 0) lots = MathMin(lots, InpMaxLots);
    }
    return NormalizeLots(lots);
 }
 
-void OpenPosition(int dir) {
-   double lots = StratoLots();
-   if (lots <= 0) {
-      StratoWarn("calculated lot size is below this symbol's minimum, so no trade was opened");
-      return;
+// Opens at market, or places the pending order this side uses. False if nothing was sent.
+bool StratoEnter(int dir) {
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID), ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   double entry = dir > 0 ? ask : bid;
+   int pending = 0; // 0 market, 1 limit, 2 stop
+   if (!StratoPendingPrice(dir, entry, pending)) return false;
+   double sd = StratoStopDistance(dir, entry);
+   if (sd < 0) {
+      StratoWarn("the stop-loss level is missing or on the wrong side of the entry, so no trade was opened");
+      return false;
    }
-   double price = dir > 0 ? SymbolInfoDouble(_Symbol, SYMBOL_ASK) : SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   double sl = InpStopLossPips > 0 ? NormalizeDouble(price - dir * InpStopLossPips * StratoPip(), _Digits) : 0;
-   double tp = InpTakeProfitPips > 0 ? NormalizeDouble(price + dir * InpTakeProfitPips * StratoPip(), _Digits) : 0;
-   bool sent = dir > 0 ? trade.Buy(lots, _Symbol, 0, sl, tp, "StratoBot")
-                       : trade.Sell(lots, _Symbol, 0, sl, tp, "StratoBot");
+   double td = StratoTargetDistance(dir, entry, sd);
+   if (td < 0) {
+      StratoWarn("the take-profit level is missing or on the wrong side of the entry, so no trade was opened");
+      return false;
+   }
+   long slPts = sd > 0 ? StratoDistPts(sd) : 0;
+   long tpPts = td > 0 ? StratoDistPts(td) : 0;
+   if (InpMinRewardRisk > 0 && slPts > 0 && tpPts > 0 && (double)tpPts / slPts + 1e-9 < InpMinRewardRisk) {
+      StratoWarn("take profit / stop loss is below the minimum reward:risk, so no trade was opened");
+      return false;
+   }
+   double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+   double lots = StratoLots(slPts * _Point);
+   // Never ask for more than free margin allows: a tight stop with %-risk sizing can otherwise
+   // request a position the broker rejects outright. The trade server's own check (OrderCheck)
+   // says what the order needs; reducing only ever lowers the risk.
+   double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   double marginPerLot = 0;
+   if (lots > 0) {
+      MqlTradeRequest req;
+      MqlTradeCheckResult chk;
+      ZeroMemory(req);
+      ZeroMemory(chk);
+      req.action = TRADE_ACTION_DEAL;
+      req.symbol = _Symbol;
+      req.volume = lots;
+      req.type = dir > 0 ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+      req.price = dir > 0 ? ask : bid;
+      long fills = SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
+      req.type_filling = (fills & SYMBOL_FILLING_FOK) != 0 ? ORDER_FILLING_FOK
+                       : (fills & SYMBOL_FILLING_IOC) != 0 ? ORDER_FILLING_IOC : ORDER_FILLING_RETURN;
+      OrderCheck(req, chk); // fills chk.margin even when the answer is "not enough money"
+      if (chk.margin > 0) marginPerLot = chk.margin / lots;
+      if (marginPerLot > 0) {
+         double affordable = NormalizeLots(freeMargin * 0.95 / marginPerLot);
+         if (lots > affordable) {
+            StratoWarn("position size reduced from " + DoubleToString(lots, 2) + " to " + DoubleToString(affordable, 2) +
+                       " lots to fit free margin (" + DoubleToString(freeMargin, 2) + ")");
+            lots = affordable;
+         }
+      }
+   }
+   if (lots <= 0) {
+      StratoWarn("calculated lot size is below this symbol's minimum (or free margin is too low), so no trade was opened");
+      return false;
+   }
+   double sl = slPts > 0 ? NormalizeDouble(entry - dir * slPts * _Point, _Digits) : 0;
+   double tp = tpPts > 0 ? NormalizeDouble(entry + dir * tpPts * _Point, _Digits) : 0;
+   // A market order's stops must sit beyond the current price (buys vs the bid, sells vs the ask)
+   // by at least the broker's minimum distance. A wide spread (e.g. Monday's open) can break that.
+   if (pending == 0) {
+      long ref = StratoPts(dir > 0 ? bid : ask);
+      long minGap = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+      if ((sl > 0 && dir * (ref - StratoPts(sl)) <= minGap) || (tp > 0 && dir * (StratoPts(tp) - ref) <= minGap)) {
+         StratoWarn("the spread is wider than the stop or target distance right now, so no trade was opened");
+         return false;
+      }
+   }
+   bool sent;
+   if (pending == 0) sent = dir > 0 ? trade.Buy(lots, _Symbol, 0, sl, tp, "StratoBot") : trade.Sell(lots, _Symbol, 0, sl, tp, "StratoBot");
+   else if (pending == 1) sent = dir > 0 ? trade.BuyLimit(lots, entry, _Symbol, sl, tp, ORDER_TIME_GTC, 0, "StratoBot")
+                                         : trade.SellLimit(lots, entry, _Symbol, sl, tp, ORDER_TIME_GTC, 0, "StratoBot");
+   else sent = dir > 0 ? trade.BuyStop(lots, entry, _Symbol, sl, tp, ORDER_TIME_GTC, 0, "StratoBot")
+                       : trade.SellStop(lots, entry, _Symbol, sl, tp, ORDER_TIME_GTC, 0, "StratoBot");
    if (!sent || (trade.ResultRetcode() != TRADE_RETCODE_DONE && trade.ResultRetcode() != TRADE_RETCODE_PLACED)) {
       StratoWarn("order was rejected: " + trade.ResultRetcodeDescription());
+      return false;
    }
+   string common = IntegerToString(dir) + "," + StratoNum(sl) + "," + StratoNum(tp) + "," + DoubleToString(lots, 2) + "," +
+                   DoubleToString(balance, 2) + "," + DoubleToString(freeMargin, 2) + "," + DoubleToString(marginPerLot, 8);
+   if (pending == 0) StratoTradeLog("open," + common + "," + StratoNum(trade.ResultPrice()));
+   else StratoTradeLog("place," + common + "," + StratoNum(entry) + "," + (pending == 1 ? "limit" : "stop"));
+   return true;
 }
 
-void ManageExits() {
-   double pip = StratoPip();
+ulong StratoOwnPending() {
+   for (int i = OrdersTotal() - 1; i >= 0; i--) {
+      ulong ticket = OrderGetTicket(i);
+      if (ticket > 0 && OrderGetString(ORDER_SYMBOL) == _Symbol && OrderGetInteger(ORDER_MAGIC) == InpMagic) return ticket;
+   }
+   return 0;
+}
+
+ulong StratoOwnPosition() {
    for (int i = PositionsTotal() - 1; i >= 0; i--) {
       ulong ticket = PositionGetTicket(i);
-      if (ticket == 0 || !PositionSelectByTicket(ticket) || !IsOwnPosition()) continue;
-      bool isBuy = PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY;
-      double dir = isBuy ? 1.0 : -1.0;
-      double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
-      double sl = PositionGetDouble(POSITION_SL);
-      double tp = PositionGetDouble(POSITION_TP);
-      double market = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-      double newSL = sl;
-      double newTP = tp;
+      if (ticket > 0 && PositionSelectByTicket(ticket) && IsOwnPosition()) return ticket;
+   }
+   return 0;
+}
 
-      // Re-apply a missing stop / target (e.g. if the broker dropped it).
-      if (newSL == 0 && InpStopLossPips > 0) newSL = openPrice - dir * InpStopLossPips * pip;
-      if (newTP == 0 && InpTakeProfitPips > 0) newTP = openPrice + dir * InpTakeProfitPips * pip;
+// State of the current position, reset whenever a new one appears (market entry or pending fill).
+ulong g_posTicket = 0;
+long g_initialRiskPts = 0;
+bool g_partialDone = false;
 
-      if (InpBreakEvenPips > 0 && dir * (market - openPrice) >= InpBreakEvenPips * pip &&
-          (newSL == 0 || dir * (openPrice - newSL) > 0)) newSL = openPrice;
+void StratoTrackPosition(ulong ticket) {
+   if (ticket == g_posTicket) return;
+   g_posTicket = ticket;
+   g_partialDone = false;
+   double sl = PositionGetDouble(POSITION_SL);
+   g_initialRiskPts = sl > 0 ? MathAbs(StratoPts(PositionGetDouble(POSITION_PRICE_OPEN)) - StratoPts(sl)) : 0;
+}
 
-      // Trail only in the position's favour, a pip at a time, so the broker isn't sent a modify every tick.
-      if (InpTrailingPips > 0) {
-         double trail = market - dir * InpTrailingPips * pip;
-         if (newSL == 0 || dir * (trail - newSL) >= pip) newSL = trail;
+void ManageExits(ulong ticket) {
+   if (!PositionSelectByTicket(ticket)) return;
+   double pip = StratoPip();
+   long pipPts = StratoPipPts();
+   bool isBuy = PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY;
+   double dir = isBuy ? 1.0 : -1.0;
+   double openPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+   double sl = PositionGetDouble(POSITION_SL);
+   double tp = PositionGetDouble(POSITION_TP);
+   double market = isBuy ? SymbolInfoDouble(_Symbol, SYMBOL_BID) : SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   long gainPts = (long)dir * (StratoPts(market) - StratoPts(openPrice));
+
+   // Partial close, once, when profit reaches InpPartialAtR x the initial risk.
+   if (InpPartialAtR > 0 && !g_partialDone && g_initialRiskPts > 0 && gainPts >= MathRound(InpPartialAtR * g_initialRiskPts)) {
+      g_partialDone = true;
+      double volume = PositionGetDouble(POSITION_VOLUME);
+      double part = NormalizeLots(volume * InpPartialFraction);
+      if (part > 0 && part < volume) {
+         if (trade.PositionClosePartial(ticket, part)) StratoTradeLog("partial," + DoubleToString(part, 2));
+         else StratoWarn("partial close was rejected: " + trade.ResultRetcodeDescription());
       }
+      if (!PositionSelectByTicket(ticket)) return;
+   }
 
-      newSL = NormalizeDouble(newSL, _Digits);
-      newTP = NormalizeDouble(newTP, _Digits);
-      if (newSL != NormalizeDouble(sl, _Digits) || newTP != NormalizeDouble(tp, _Digits)) {
-         trade.PositionModify(ticket, newSL, newTP);
-      }
+   // Distances are compared in whole points: "moved a pip" must not depend on
+   // floating-point noise in the prices (an exact 1-pip step always counts).
+   double newSL = sl;
+   if (InpBreakEvenPips > 0 && gainPts >= MathRound(InpBreakEvenPips * pipPts) &&
+       (newSL == 0 || dir * (StratoPts(openPrice) - StratoPts(newSL)) > 0)) newSL = openPrice;
+
+   // Trail only in the position's favour, a pip at a time, so the broker isn't sent a modify every tick.
+   double trailDistance = StratoTrailDistance();
+   if (trailDistance > 0) {
+      double trail = (StratoPts(market) - (long)dir * StratoDistPts(trailDistance)) * _Point;
+      if (newSL == 0 || dir * (StratoPts(trail) - StratoPts(newSL)) >= pipPts) newSL = trail;
+   }
+
+   newSL = NormalizeDouble(newSL, _Digits);
+   if (newSL != NormalizeDouble(sl, _Digits)) {
+      if (trade.PositionModify(ticket, newSL, tp))
+         StratoTradeLog("modify," + StratoNum(newSL) + "," + StratoNum(tp));
    }
 }
+
+bool StratoTradeLimitsOk() {
+   if (InpMaxTradesPerDay > 0 && StratoTradesToday() >= InpMaxTradesPerDay) {
+      StratoWarn("the daily trade limit is reached, so no trade was opened");
+      return false;
+   }
+   long spreadPts = StratoPts(SymbolInfoDouble(_Symbol, SYMBOL_ASK)) - StratoPts(SymbolInfoDouble(_Symbol, SYMBOL_BID));
+   if (InpMaxSpreadPips > 0 && spreadPts > MathRound(InpMaxSpreadPips * StratoPipPts())) {
+      StratoWarn("the spread is wider than the maximum, so no trade was opened");
+      return false;
+   }
+   return true;
+}
+
+// Closes the position at market (time limit / opposite signal).
+void StratoClose(ulong ticket, string why) {
+   if (trade.PositionClose(ticket)) StratoTradeLog("close," + why);
+   else StratoWarn("closing the trade (" + why + ") was rejected: " + trade.ResultRetcodeDescription());
+}
+
+${trading.code}
 
 //+------------------------------------------------------------------+
 //| Developer diagnostics (InpDiffLog): every node's value, each bar |
@@ -729,6 +889,30 @@ void StratoLogDecision(bool filters, bool goLong, bool goShort) {
 ${table.values.map((_, i) => `   line += "," + StratoNum(V${i}(0));`).join("\n")}
 ${table.conditions.map((_, i) => `   line += "," + (C${i}(0) ? "1" : "0");`).join("\n")}
    FileWriteString(g_log, line + "\\n");
+}
+
+// Trade events, stamped with the current tick time in milliseconds.
+void StratoTradeLog(string event) {
+   if (g_trades == INVALID_HANDLE) return;
+   MqlTick tick;
+   SymbolInfoTick(_Symbol, tick);
+   FileWriteString(g_trades, IntegerToString(tick.time_msc) + "," + event + "\\n");
+}
+
+// Every deal of this EA, with MT5's reason (SL, TP, expert...).
+void StratoDumpTrades() {
+   if (HistorySelect(0, TimeCurrent())) {
+      for (int i = 0; i < HistoryDealsTotal(); i++) {
+         ulong d = HistoryDealGetTicket(i);
+         if (d == 0 || HistoryDealGetInteger(d, DEAL_MAGIC) != InpMagic) continue;
+         FileWriteString(g_trades, IntegerToString(HistoryDealGetInteger(d, DEAL_TIME_MSC)) + ",deal," +
+                                   IntegerToString(HistoryDealGetInteger(d, DEAL_TYPE)) + "," +
+                                   IntegerToString(HistoryDealGetInteger(d, DEAL_ENTRY)) + "," +
+                                   StratoNum(HistoryDealGetDouble(d, DEAL_PRICE)) + "," +
+                                   DoubleToString(HistoryDealGetDouble(d, DEAL_VOLUME), 2) + "," +
+                                   IntegerToString(HistoryDealGetInteger(d, DEAL_REASON)) + "\\n");
+      }
+   }
 }
 
 void StratoDumpRates() {
@@ -753,14 +937,20 @@ int OnInit() {
    trade.SetDeviationInPoints(10);
    trade.SetTypeFillingBySymbol(_Symbol);
 ${handleInits.join("\n")}
-   if (InpRiskPercent > 0 && InpStopLossPips <= 0) Print("StratoBot: risk-based sizing needs a stop loss; using the fixed lot size instead.");
-   if (InpMinRewardRisk > 0 && (InpStopLossPips <= 0 || InpTakeProfitPips <= 0)) Print("StratoBot: the reward:risk rule needs both a stop loss and a take profit, so it has no effect.");
+${trading.initNotes}
    if (InpNewsFilter != "Off" && MQLInfoInteger(MQL_TESTER)) Print("StratoBot: the news filter uses MetaTrader's live calendar, which doesn't exist in the Strategy Tester, so it is skipped here.");
    if (InpDiffLog) {
       g_log = FileOpen("StratoBotDiff\\\\nodes.csv", FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
       FileWriteString(g_log, "#meta," + _Symbol + "," + IntegerToString(_Digits) + "," + DoubleToString(_Point, 10) + "," +
                              IntegerToString(StratoGmtOffset()) + ",${table.values.length},${table.conditions.length}\\n");
-   }
+      g_trades = FileOpen("StratoBotDiff\\\\trades.csv", FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+      g_ticks = FileOpen("StratoBotDiff\\\\ticks.csv", FILE_WRITE | FILE_TXT | FILE_ANSI | FILE_COMMON);
+      MqlTick first;
+      if (SymbolInfoTick(_Symbol, first)) FileWriteString(g_ticks, "#point," + DoubleToString(_Point, 10) + ",digits," + IntegerToString(_Digits) +
+         ",step," + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP), 8) + ",min," + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN), 8) +
+         ",max," + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX), 8) + ",tickvalue," + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE), 10) +
+         ",ticksize," + DoubleToString(SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE), 10) + ",start," + IntegerToString((long)iTime(_Symbol, InpTimeframe, 0)) +
+         ",stops," + IntegerToString(SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL)) + "\\n");   }
    g_lastBar = iTime(_Symbol, InpTimeframe, 0); // first decision at the next bar open, never mid-bar
    return(INIT_SUCCEEDED);
 }
@@ -770,10 +960,24 @@ void OnDeinit(const int reason) {
       FileClose(g_log);
       StratoDumpRates();
    }
+   if (g_trades != INVALID_HANDLE) {
+      StratoDumpTrades();
+      FileClose(g_trades);
+   }
+   if (g_ticks != INVALID_HANDLE) FileClose(g_ticks);
 }
 
 void OnTick() {
-   if (CountOwnPositions() > 0) ManageExits();
+   if (g_ticks != INVALID_HANDLE) {
+      MqlTick tick;
+      if (SymbolInfoTick(_Symbol, tick))
+         FileWriteString(g_ticks, IntegerToString(tick.time_msc) + "," + DoubleToString(tick.bid, 16) + "," + DoubleToString(tick.ask, 16) + "\\n");
+   }
+   ulong pos = StratoOwnPosition();
+   if (pos > 0) {
+      StratoTrackPosition(pos);
+      ManageExits(pos);
+   }
 
    datetime bar = iTime(_Symbol, InpTimeframe, 0);
    if (bar == 0 || bar == g_lastBar) return;
@@ -784,7 +988,26 @@ void OnTick() {
    bool goShort = filters && StratoShort();
    if (InpDiffLog) StratoLogDecision(filters, goLong, goShort);
 
-   if (CountOwnPositions() > 0) return;
+   // Exits decided at the bar open: time limit, then opposite signal (which may then enter the other way).
+   pos = StratoOwnPosition();
+   if (pos > 0 && PositionSelectByTicket(pos)) {
+      bool isBuy = PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY;
+      int barsHeld = iBarShift(_Symbol, InpTimeframe, (datetime)PositionGetInteger(POSITION_TIME), false);
+      if (InpCloseAfterBars > 0 && barsHeld >= InpCloseAfterBars) StratoClose(pos, "time");
+      else if (InpCloseOnOpposite && (isBuy ? goShort : goLong)) StratoClose(pos, "opposite");
+   }
+   ulong order = StratoOwnPending();
+   if (order > 0 && OrderSelect(order)) {
+      long type = OrderGetInteger(ORDER_TYPE);
+      bool buyOrder = type == ORDER_TYPE_BUY_LIMIT || type == ORDER_TYPE_BUY_STOP;
+      int age = iBarShift(_Symbol, InpTimeframe, (datetime)OrderGetInteger(ORDER_TIME_SETUP), false);
+      if (age >= StratoOrderExpiryBars(buyOrder) && trade.OrderDelete(order)) {
+         StratoTradeLog("cancel");
+         order = 0;
+      }
+   }
+
+   if (StratoOwnPosition() > 0 || order > 0) return;
    int dir = 0;
    if (goLong && goShort) {
       StratoWarn("buy and sell rules both matched on this bar, so no trade was opened");
@@ -802,8 +1025,8 @@ ${
 `
     : ""
 }   if (dir == 0) return;
-   if (!StratoDailyLossOk() || !StratoNewsOk() || !StratoRewardRiskOk()) return;
-   OpenPosition(dir);
+   if (!StratoDailyLossOk() || !StratoNewsOk() || !StratoTradeLimitsOk()) return;
+   StratoEnter(dir);
 }
 `;
 }
@@ -894,6 +1117,117 @@ function patternBody(
    return false;`;
     }
   }
+}
+
+/**
+ * Strategy-specific trading code: stop / target / trailing distances, pending
+ * order prices and expiry. Distances are price units from the entry; 0 means
+ * "none" and -1 means "can't be placed" (the trade is skipped).
+ */
+function compileTrading(s: RuleStrategy, V: (v: Value) => string) {
+  const x = s.exits;
+  const inputs: string[] = [];
+  const atrCall = (period: number) => `${V(atrValue(period))}(0)`;
+
+  function stopBody(spec: StopSpec | undefined): string {
+    if (spec?.kind === "atr") {
+      inputs.push(`input double InpStopLossAtr = ${spec.multiple}; // Stop loss, x ATR(${spec.period}) (0 = none)`);
+      return `if (InpStopLossAtr <= 0) return 0;
+   double a = ${atrCall(spec.period)};
+   return StratoOk(a) && a > 0 ? InpStopLossAtr * a : -1;`;
+    }
+    if (spec?.kind === "level") {
+      return `double lv = ${V(spec.at)}(0);
+   if (!StratoOk(lv) || dir * (StratoPts(entry) - StratoPts(lv)) <= 0) return -1;
+   return MathAbs(entry - lv);`;
+    }
+    inputs.push(`input double InpStopLossPips = ${spec?.pips ?? 0}; // Stop loss, pips (0 = none)`);
+    return `return InpStopLossPips > 0 ? InpStopLossPips * StratoPip() : 0;`;
+  }
+
+  function targetBody(spec: TargetSpec | undefined): string {
+    if (spec?.kind === "rr") {
+      inputs.push(`input double InpTakeProfitRR = ${spec.multiple}; // Take profit, x the stop-loss distance (0 = none)`);
+      return `return InpTakeProfitRR > 0 && stopDistance > 0 ? InpTakeProfitRR * stopDistance : 0;`;
+    }
+    if (spec?.kind === "atr") {
+      inputs.push(`input double InpTakeProfitAtr = ${spec.multiple}; // Take profit, x ATR(${spec.period}) (0 = none)`);
+      return `if (InpTakeProfitAtr <= 0) return 0;
+   double a = ${atrCall(spec.period)};
+   return StratoOk(a) && a > 0 ? InpTakeProfitAtr * a : -1;`;
+    }
+    if (spec?.kind === "level") {
+      return `double lv = ${V(spec.at)}(0);
+   if (!StratoOk(lv) || dir * (StratoPts(lv) - StratoPts(entry)) <= 0) return -1;
+   return MathAbs(lv - entry);`;
+    }
+    inputs.push(`input double InpTakeProfitPips = ${spec?.pips ?? 0}; // Take profit, pips (0 = none)`);
+    return `return InpTakeProfitPips > 0 ? InpTakeProfitPips * StratoPip() : 0;`;
+  }
+
+  function trailBody(spec: TrailSpec | undefined): string {
+    if (spec?.kind === "atr") {
+      inputs.push(`input double InpTrailingAtr = ${spec.multiple}; // Trailing stop distance, x ATR(${spec.period}) (0 = off)`);
+      return `if (InpTrailingAtr <= 0) return 0;
+   double a = ${atrCall(spec.period)};
+   return StratoOk(a) && a > 0 ? InpTrailingAtr * a : 0;`;
+    }
+    inputs.push(`input double InpTrailingPips = ${spec?.pips ?? 0}; // Trailing stop distance, pips (0 = off)`);
+    return `return InpTrailingPips > 0 ? InpTrailingPips * StratoPip() : 0;`;
+  }
+
+  function pendingSide(dir: 1 | -1, p: PendingEntry | undefined): string {
+    if (!p) return "";
+    const side = dir > 0 ? "Buy" : "Sell";
+    const ref = dir > 0 ? "SYMBOL_ASK" : "SYMBOL_BID";
+    // limit = better than market (buy below / sell above); stop = beyond it.
+    const beyond = (dir > 0) === (p.type === "stop");
+    inputs.push(`input int    Inp${side}OrderExpiryBars = ${p.expiresBars}; // Cancel an unfilled ${side.toLowerCase()} ${p.type} order after this many bars`);
+    return `   if (dir == ${dir}) {
+      double p = ${V(p.at)}(0);
+      if (!StratoOk(p)) {
+         StratoWarn("the ${side.toLowerCase()} ${p.type} price couldn't be calculated, so no order was placed");
+         return false;
+      }
+      p = NormalizeDouble(p, _Digits);
+      if (StratoPts(p) ${beyond ? "<=" : ">="} StratoPts(SymbolInfoDouble(_Symbol, ${ref}))) {
+         StratoWarn("the ${side.toLowerCase()} ${p.type} price is on the wrong side of the market, so no order was placed");
+         return false;
+      }
+      entry = p;
+      pending = ${p.type === "limit" ? 1 : 2};
+   }
+`;
+  }
+
+  const code = `double StratoStopDistance(int dir, double entry) {
+   ${stopBody(x.stopLoss)}
+}
+
+double StratoTargetDistance(int dir, double entry, double stopDistance) {
+   ${targetBody(x.takeProfit)}
+}
+
+double StratoTrailDistance() {
+   ${trailBody(x.trailing)}
+}
+
+// Sets entry / pending (1 limit, 2 stop) for sides that use a pending order; false = skip this signal.
+bool StratoPendingPrice(int dir, double &entry, int &pending) {
+${pendingSide(1, s.entry?.long)}${pendingSide(-1, s.entry?.short)}   return true;
+}
+
+int StratoOrderExpiryBars(bool buyOrder) {
+   return buyOrder ? ${s.entry?.long ? "InpBuyOrderExpiryBars" : "1"} : ${s.entry?.short ? "InpSellOrderExpiryBars" : "1"};
+}`;
+
+  const riskSized = Boolean(s.sizing.riskPercent || s.sizing.riskMoney);
+  const notes: string[] = [];
+  if (riskSized && !x.stopLoss) notes.push(`   Print("StratoBot: risk-based sizing needs a stop loss; using the fixed lot size instead.");`);
+  if (s.guards.minRewardRisk && !(x.stopLoss && x.takeProfit)) {
+    notes.push(`   Print("StratoBot: the reward:risk rule needs both a stop loss and a take profit, so it has no effect.");`);
+  }
+  return { inputs, code, initNotes: notes.join("\n") };
 }
 
 /** Stable per-strategy magic number, so two StratoBot EAs on one account don't manage each other's trades. */

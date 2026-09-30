@@ -30,6 +30,8 @@ const BLOCK_CASES: Record<string, BlockInstance[]> = {
   duplicate_ma_cross: [inst("ma_cross", { fast: 9, slow: 21 }), inst("ma_cross", { fast: 50, slow: 200 })],
   homepage_example: [inst("killzone"), inst("sweep"), inst("fib50"), inst("trailing_stop")],
   ny_engulfing_htf: [inst("killzone", { session: "New York" }), inst("engulfing"), inst("htf_confirmation")],
+  trade_sl_tp: [inst("ma_cross"), inst("stop_loss", { distance: 15 }), inst("take_profit", { distance: 25 })],
+  trade_trail_be: [inst("ma_cross"), inst("stop_loss", { distance: 20 }), inst("trailing_stop", { distance: 10 }), inst("break_even", { trigger: 8 })],
 };
 
 const close: Value = { kind: "price", field: "close" };
@@ -129,7 +131,74 @@ const RULE_CASES: Record<string, RuleStrategy> = {
   }),
 };
 
+const fast: Value = { kind: "ma", method: "ema", period: 9 };
+const slow: Value = { kind: "ma", method: "ema", period: 21 };
+const maLong = [crossUp(fast, slow)];
+const maShort = [crossDown(fast, slow)];
+const pipsV = (value: number): Value => ({ kind: "pips", value });
+const swingHigh: Value = { kind: "swing", side: "high", strength: 2, lookback: 30 };
+const swingLow: Value = { kind: "swing", side: "low", strength: 2, lookback: 30 };
+const lastHigh: Value = { kind: "price", field: "high" };
+const lastLow: Value = { kind: "price", field: "low" };
+
+const TRADE_CASES: Record<string, RuleStrategy> = {
+  trade_atr_rr: rules({
+    long: maLong,
+    short: maShort,
+    exits: { stopLoss: { kind: "atr", multiple: 1.5, period: 14 }, takeProfit: { kind: "rr", multiple: 2 } },
+  }),
+  trade_level_stop_risk: rules({
+    long: [cmp(close, "gt", swingHigh)],
+    short: [cmp(close, "lt", swingLow)],
+    exits: { stopLoss: { kind: "level", at: swingLow }, takeProfit: { kind: "pips", pips: 30 } },
+    sizing: { riskPercent: 1 },
+  }),
+  trade_limit_pullback: rules({
+    long: maLong,
+    short: maShort,
+    entry: {
+      long: { type: "limit", at: { kind: "arith", op: "sub", a: close, b: pipsV(5) }, expiresBars: 4 },
+      short: { type: "limit", at: { kind: "arith", op: "add", a: close, b: pipsV(5) }, expiresBars: 4 },
+    },
+    exits: { stopLoss: { kind: "pips", pips: 15 }, takeProfit: { kind: "rr", multiple: 1.5 } },
+  }),
+  trade_inside_bar_breakout: rules({
+    filters: [{ kind: "pattern", pattern: "inside_bar" }],
+    long: [cmp(close, "gt", { kind: "ma", method: "sma", period: 50 })],
+    short: [cmp(close, "lt", { kind: "ma", method: "sma", period: 50 })],
+    entry: {
+      long: { type: "stop", at: { kind: "arith", op: "add", a: lastHigh, b: pipsV(1) }, expiresBars: 3 },
+      short: { type: "stop", at: { kind: "arith", op: "sub", a: lastLow, b: pipsV(1) }, expiresBars: 3 },
+    },
+    exits: { stopLoss: { kind: "pips", pips: 12 }, takeProfit: { kind: "rr", multiple: 2 } },
+  }),
+  trade_time_and_opposite: rules({
+    long: maLong,
+    short: maShort,
+    exits: { closeAfterBars: 12, closeOnOpposite: true },
+    sizing: { riskMoney: 50 },
+  }),
+  trade_partial_trail_atr: rules({
+    long: maLong,
+    short: maShort,
+    exits: {
+      stopLoss: { kind: "pips", pips: 20 },
+      trailing: { kind: "atr", multiple: 1, period: 14 },
+      breakEvenPips: 10,
+      partial: { atR: 1, fraction: 0.5 },
+    },
+    sizing: { fixedLots: 0.2 },
+  }),
+  trade_daily_limit_spread: rules({
+    long: [{ kind: "pattern", pattern: "engulfing", side: "bullish" }],
+    short: [{ kind: "pattern", pattern: "engulfing", side: "bearish" }],
+    exits: { stopLoss: { kind: "pips", pips: 10 }, takeProfit: { kind: "pips", pips: 10 } },
+    guards: { maxTradesPerDay: 2, maxSpreadPips: 1 },
+  }),
+};
+
 export const CASES: Record<string, RuleStrategy> = {
+  ...TRADE_CASES,
   ...Object.fromEntries(Object.entries(BLOCK_CASES).map(([name, blocks]) => [name, blocksToRules(blocks)])),
   ...RULE_CASES,
 };

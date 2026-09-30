@@ -211,10 +211,11 @@ export function blocksToRules(blocks: BlockInstance[]): RuleStrategy {
     s.directionFromInput = true;
   }
 
+  const pips = (n: number | undefined) => (n === undefined ? undefined : { kind: "pips" as const, pips: n });
   s.exits = {
-    stopLossPips: firstNum("stop_loss", "distance"),
-    takeProfitPips: firstNum("take_profit", "distance"),
-    trailingPips: firstNum("trailing_stop", "distance"),
+    stopLoss: pips(firstNum("stop_loss", "distance")),
+    takeProfit: pips(firstNum("take_profit", "distance")),
+    trailing: pips(firstNum("trailing_stop", "distance")),
     breakEvenPips: firstNum("break_even", "trigger"),
   };
   s.sizing = { fixedLots: firstNum("position_size", "size"), riskPercent: firstNum("risk_per_trade", "percent") };

@@ -17,6 +17,25 @@ export interface NodeTable {
   short: number[] | null;
 }
 
+/** Values that order placement and exits read (pending prices, stop levels, ATR distances). */
+export function tradeValues(s: RuleStrategy): Value[] {
+  const out: Value[] = [];
+  const spec = (x: { kind: string; at?: Value; period?: number } | undefined) => {
+    if (x?.kind === "level" && x.at) out.push(x.at);
+    if (x?.kind === "atr" && x.period) out.push(atrValue(x.period));
+  };
+  if (s.entry?.long) out.push(s.entry.long.at);
+  if (s.entry?.short) out.push(s.entry.short.at);
+  spec(s.exits.stopLoss);
+  spec(s.exits.takeProfit);
+  spec(s.exits.trailing);
+  return out;
+}
+
+export function atrValue(period: number): Value {
+  return { kind: "atr", period };
+}
+
 export function stableKey(node: unknown): string {
   if (Array.isArray(node)) return `[${node.map(stableKey).join(",")}]`;
   if (node && typeof node === "object") {
@@ -75,6 +94,7 @@ export function buildNodeTable(s: RuleStrategy): NodeTable {
   const filters = s.filters.map(addCondition);
   const long = s.long ? s.long.map(addCondition) : null;
   const short = s.short ? s.short.map(addCondition) : null;
+  for (const v of tradeValues(s)) addValue(v);
 
   return {
     values,

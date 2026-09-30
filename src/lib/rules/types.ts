@@ -99,6 +99,28 @@ export type Condition =
   /** True if `of` held at any of the last `bars` decision points (including this one). */
   | { kind: "within"; bars: number; of: Condition };
 
+/** Distance from the entry price to a stop, or the stop's price itself. */
+export type StopSpec =
+  | { kind: "pips"; pips: number }
+  /** multiple x ATR(period) of the last closed bar at the decision. */
+  | { kind: "atr"; multiple: number; period: number }
+  /** An absolute price from a rule value (e.g. the last swing low), read at the decision.
+   *  If it's on the wrong side of the entry, the trade is skipped. */
+  | { kind: "level"; at: Value };
+
+export type TargetSpec = StopSpec | { kind: "rr"; multiple: number };
+
+export type TrailSpec = { kind: "pips"; pips: number } | { kind: "atr"; multiple: number; period: number };
+
+/** Instead of entering at market: a pending order at a rule-defined price. */
+export interface PendingEntry {
+  /** limit = better than current price (pullback); stop = beyond it (breakout). */
+  type: "limit" | "stop";
+  at: Value;
+  /** Cancel if not filled after this many bars. */
+  expiresBars: number;
+}
+
 export interface RuleStrategy {
   version: 1;
   /** "chart" = whatever chart / tester timeframe the EA runs on. */
@@ -112,22 +134,37 @@ export interface RuleStrategy {
   /** No rule decides buy vs. sell; the EA takes direction from a trader-set input
    *  whenever the filters pass. Only valid when long and short are both null. */
   directionFromInput?: boolean;
+  /** Per side; omitted = enter at market on the decision bar. */
+  entry?: { long?: PendingEntry; short?: PendingEntry };
   exits: {
-    stopLossPips?: number;
-    takeProfitPips?: number;
-    trailingPips?: number;
+    stopLoss?: StopSpec;
+    takeProfit?: TargetSpec;
+    trailing?: TrailSpec;
+    /** Move the stop to the entry price once this far in profit. */
     breakEvenPips?: number;
+    /** Close at market on the open of the Nth bar after entry. */
+    closeAfterBars?: number;
+    /** Close when the opposite side's entry signal fires (it may then enter that way). */
+    closeOnOpposite?: boolean;
+    /** Close `fraction` of the position once profit reaches `atR` x the initial stop distance. */
+    partial?: { atR: number; fraction: number };
   };
   sizing: {
-    /** Fixed lots; when riskPercent also applies, this is the cap. */
+    /** Fixed lots; when risk sizing also applies, this is the cap. */
     fixedLots?: number;
-    /** % of balance lost if the stop loss is hit. Needs stopLossPips. */
+    /** % of balance lost if the stop loss is hit. Needs a stop loss. */
     riskPercent?: number;
+    /** Account-currency amount lost if the stop loss is hit. Needs a stop loss. */
+    riskMoney?: number;
   };
   guards: {
     maxDailyLossPercent?: number;
     news?: "high" | "all";
-    /** Minimum take-profit / stop-loss ratio. */
+    /** Minimum take-profit / stop-loss distance ratio. */
     minRewardRisk?: number;
+    /** Entries (fills) per server day. */
+    maxTradesPerDay?: number;
+    /** Skip entries while the spread is wider than this. */
+    maxSpreadPips?: number;
   };
 }

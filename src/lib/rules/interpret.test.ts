@@ -119,6 +119,6 @@ test("block translation keeps each block's direction", () => {
   assert.equal(hasContradictoryDirections(contradiction), true);
 
   const exits = blocksToRules([block("killzone"), block("stop_loss", { distance: 15 }), block("take_profit", { distance: 5000 })]);
-  assert.equal(exits.exits.stopLossPips, 15);
-  assert.equal(exits.exits.takeProfitPips, 1000); // clamped to the block's max
+  assert.deepEqual(exits.exits.stopLoss, { kind: "pips", pips: 15 });
+  assert.deepEqual(exits.exits.takeProfit, { kind: "pips", pips: 1000 }); // clamped to the block's max
 });

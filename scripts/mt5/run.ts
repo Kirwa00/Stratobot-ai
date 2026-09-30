@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { compileRules } from "../../src/lib/rules/compile-mql5";
+import { execute, type Tick, type TradeEvent } from "../../src/lib/rules/execute";
 import { Interpreter, pipSize, type Candle } from "../../src/lib/rules/interpret";
 import type { RuleStrategy } from "../../src/lib/rules/types";
 import { CASES } from "./cases";
@@ -144,6 +145,132 @@ function compare(
   return { compared, mismatches, longs, shorts, filterPasses };
 }
 
+interface TradeCheck {
+  summary: string;
+  mismatches: string[];
+}
+
+/** Replays the EA's logged ticks through execute() and compares every trade event with what the EA did. */
+function compareTrades(rules: RuleStrategy): TradeCheck {
+  const [header, ...tickLines] = readFileSync(join(COMMON_FILES, "ticks.csv"), "utf8").trim().split(/\r?\n/);
+  const h = header.slice(1).split(",");
+  const meta = Object.fromEntries(h.flatMap((v, i) => (i % 2 === 0 ? [[v, Number(h[i + 1])]] : [])));
+  const ticks: Tick[] = tickLines.map((l) => {
+    const [time, bid, ask] = l.split(",").map(Number);
+    return { time, bid, ask };
+  });
+  const lastTick = ticks.length ? ticks[ticks.length - 1].time : 0;
+  const [nodeHeader] = readFileSync(join(COMMON_FILES, "nodes.csv"), "utf8").split(/\r?\n/, 1);
+  const [, , digits, point, gmt] = nodeHeader.split(",");
+
+  // EA side: its own log for what it decided, and the deal history for what the broker did.
+  const lines = readFileSync(join(COMMON_FILES, "trades.csv"), "utf8").trim().split(/\r?\n/).map((l) => l.split(","));
+  const deals = lines.filter((c) => c[1] === "deal").map((c) => ({
+    time: Number(c[0]),
+    entry: c[3],
+    price: Number(c[4]),
+    volume: Number(c[5]),
+    reason: c[6],
+  }));
+  const expertExit = (time: number) => deals.find((d) => d.time === time && d.entry === "1" && d.reason === "3");
+  const eaEvents: TradeEvent[] = [];
+  const balances = new Map<number, number>();
+  const margins = new Map<number, { free: number; perLot: number }>();
+  const openTimes = new Set<number>();
+  // open/place lines: time,kind,dir,sl,tp,lots,balance,freeMargin,marginPerLot,price[,type]
+  for (const c of lines) {
+    const time = Number(c[0]);
+    const dir = Number(c[2]) > 0 ? 1 : -1;
+    if (c[1] === "open" || c[1] === "place") {
+      balances.set(time, Number(c[6]));
+      margins.set(time, { free: Number(c[7]), perLot: Number(c[8]) });
+    }
+    switch (c[1]) {
+      case "open":
+        eaEvents.push({ time, kind: "open", dir, sl: +c[3], tp: +c[4], lots: +c[5], price: +c[9] });
+        openTimes.add(time);
+        break;
+      case "place":
+        eaEvents.push({ time, kind: "place", dir, sl: +c[3], tp: +c[4], lots: +c[5], price: +c[9], type: c[10] as "limit" | "stop" });
+        break;
+      case "cancel":
+        eaEvents.push({ time, kind: "cancel" });
+        break;
+      case "modify":
+        eaEvents.push({ time, kind: "modify", sl: +c[2], tp: +c[3] });
+        break;
+      case "partial": {
+        const d = expertExit(time);
+        eaEvents.push({ time, kind: "partial", lots: +c[2], price: d?.price ?? NaN });
+        break;
+      }
+      case "close": {
+        const d = expertExit(time);
+        eaEvents.push({ time, kind: "close", reason: c[2] as "time" | "opposite", price: d?.price ?? NaN, lots: d?.volume ?? NaN });
+        break;
+      }
+    }
+  }
+  for (const d of deals) {
+    if (d.time >= lastTick) continue; // closed by the tester at the end of the test
+    if (d.entry === "0" && !openTimes.has(d.time)) eaEvents.push({ time: d.time, kind: "fill", price: d.price, lots: d.volume });
+    if (d.entry === "1" && (d.reason === "4" || d.reason === "5")) {
+      eaEvents.push({ time: d.time, kind: "close", reason: d.reason === "4" ? "sl" : "tp", price: d.price, lots: d.volume });
+    }
+  }
+
+  const sim = execute(rules, readRates(), ticks, {
+    pip: pipSize(Number(digits), Number(point)),
+    serverGmtOffsetHours: Number(gmt),
+    symbol: {
+      digits: meta.digits,
+      point: meta.point,
+      volumeStep: meta.step,
+      volumeMin: meta.min,
+      volumeMax: meta.max,
+      tickValue: meta.tickvalue,
+      tickSize: meta.ticksize,
+      stopsLevel: meta.stops ?? 0,
+    },
+    initialBalance: 10000,
+    startBar: meta.start,
+    balanceAt: (t) => balances.get(t),
+    marginAt: (t) => margins.get(t),
+  });
+
+  // Same-millisecond events in processing order: broker, position management, bar-open exits, entry.
+  const rank = (e: TradeEvent) =>
+    e.kind === "fill" || (e.kind === "close" && (e.reason === "sl" || e.reason === "tp"))
+      ? 0
+      : e.kind === "partial" || e.kind === "modify"
+        ? 1
+        : e.kind === "close" || e.kind === "cancel"
+          ? 2
+          : 3;
+  const order = (a: TradeEvent, b: TradeEvent) => a.time - b.time || rank(a) - rank(b);
+  eaEvents.sort(order);
+  sim.sort(order);
+
+  const fmt = (e: TradeEvent | undefined) => (e ? `${new Date(e.time).toISOString()} ${JSON.stringify({ ...e, time: undefined })}` : "none");
+  const same = (a: TradeEvent, b: TradeEvent) =>
+    a.time === b.time &&
+    a.kind === b.kind &&
+    Object.keys(a).every((k) => {
+      const va = (a as unknown as Record<string, unknown>)[k];
+      const vb = (b as unknown as Record<string, unknown>)[k];
+      return typeof va === "number" && typeof vb === "number" ? Math.abs(va - vb) < 1e-9 : va === vb;
+    });
+  const mismatches: string[] = [];
+  for (let i = 0; i < Math.max(eaEvents.length, sim.length) && mismatches.length < 5; i++) {
+    if (!eaEvents[i] || !sim[i] || !same(eaEvents[i], sim[i])) mismatches.push(`#${i}: mt5 ${fmt(eaEvents[i])} | ts ${fmt(sim[i])}`);
+  }
+  const count = (k: TradeEvent["kind"]) => eaEvents.filter((e) => e.kind === k).length;
+  return {
+    summary: `${count("open")} opens, ${count("place")} orders (${count("fill")} filled, ${count("cancel")} cancelled), ${count("modify")} stop changes, ${count("partial")} partials, ${count("close")} exits`,
+    mismatches,
+  };
+}
+
 const selected = process.argv.slice(2);
 const names = selected.length ? selected : Object.keys(CASES);
 let failed = 0;
@@ -151,10 +278,12 @@ for (const name of names) {
   const rules = CASES[name];
   if (!rules) throw new Error(`unknown case ${name}`);
   let result: ReturnType<typeof compare>;
+  let trades: TradeCheck;
   try {
     compileEa(name, rules);
     runTester(name);
     result = compare(name, rules);
+    trades = compareTrades(rules);
   } catch (err) {
     failed++;
     console.log(`ERROR ${name}: ${err instanceof Error ? err.message : String(err)}`);
@@ -162,12 +291,14 @@ for (const name of names) {
   }
   const { compared, mismatches, longs, shorts, filterPasses } = result;
   const decisions = mismatches.filter((m) => ["filters", "long", "short"].includes(m.node)).length;
-  const ok = compared > 0 && mismatches.length === 0;
+  const ok = compared > 0 && mismatches.length === 0 && trades.mismatches.length === 0;
   if (!ok) failed++;
   console.log(
     `${ok ? "PASS" : "FAIL"} ${name}: ${compared} bars, filters passed ${filterPasses}, buy signals ${longs}, sell signals ${shorts}; ` +
-      `${mismatches.length} node mismatches (${decisions} in final decisions)`
+      `${mismatches.length} node mismatches (${decisions} in final decisions); ` +
+      `trades: ${trades.summary}, ${trades.mismatches.length ? "MISMATCH" : "all match"}`
   );
+  for (const m of trades.mismatches) console.log(`   trade ${m}`);
   const byNode = new Map<string, Mismatch[]>();
   for (const m of mismatches) byNode.set(m.node, [...(byNode.get(m.node) ?? []), m]);
   for (const [node, list] of byNode) {
