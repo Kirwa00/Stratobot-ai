@@ -86,7 +86,8 @@ export default function HowToCreateMt5EaPage() {
           <Link href="/adjust?new=1" className="text-secondary hover:underline">
             Start with the block editor
           </Link>{" "}
-          · <Link href="/install" className="text-secondary hover:underline">Full install guide</Link>
+          · <Link href="/learn/how-to-add-expert-advisor-mt5" className="text-secondary hover:underline">Installing it in MT5</Link>{" "}
+          · <Link href="/learn/how-to-backtest-an-ea-in-mt5" className="text-secondary hover:underline">Backtesting it</Link>
         </p>
 
         <CtaBanner

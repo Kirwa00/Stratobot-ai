@@ -35,6 +35,31 @@ const ARTICLES = [
     body: "The gaps that turn a good manual strategy into a broken EA.",
   },
   {
+    href: "/learn/how-to-add-expert-advisor-mt5",
+    title: "How to Add an Expert Advisor to MT5",
+    body: "Where the file goes, compiling, attaching it to a chart, Algo Trading, and fixing an EA that won't trade.",
+  },
+  {
+    href: "/learn/how-to-backtest-an-ea-in-mt5",
+    title: "How to Backtest an EA in MT5",
+    body: "Strategy Tester settings, which modelling mode to pick, and how to read the report honestly.",
+  },
+  {
+    href: "/learn/run-ea-on-mt5-mobile",
+    title: "Can You Run an EA on MT5 Mobile?",
+    body: "Why the Android and iPhone apps can't run EAs, and three ways to keep one trading anyway.",
+  },
+  {
+    href: "/learn/convert-mt4-ea-to-mt5",
+    title: "How to Convert an MT4 EA to MT5",
+    body: "What changes between MQL4 and MQL5, why an .ex4 can't be converted, and your realistic options.",
+  },
+  {
+    href: "/learn/mt5-ea-for-prop-firms",
+    title: "Using an MT5 EA on a Prop Firm Account",
+    body: "What firms typically restrict, and how to make an EA respect daily loss, drawdown and consistency rules.",
+  },
+  {
     href: "/learn/how-to-backtest-a-trading-strategy",
     title: "How to Backtest a Trading Strategy",
     body: "The real methods — chart replay, MetaTrader's Strategy Tester, dedicated engines — and what backtesting can't tell you.",
