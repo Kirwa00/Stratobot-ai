@@ -21,7 +21,7 @@ export default function SimulatePage() {
   if (!strategy) return null;
 
   const tradable = canTrade(strategy);
-  const message = simResult ? simulationMessage(simResult, tradable, Boolean(strategy.rules)) : null;
+  const message = simResult ? simulationMessage(simResult, tradable, true) : null;
   const stats = simResult ? simulationStats(simResult, hasManagedExit(strategy)) : null;
   const editPath = strategy.rules ? "/app#edit" : "/adjust";
 
@@ -108,8 +108,8 @@ export default function SimulatePage() {
               <p className="text-sm text-chalk/80 leading-relaxed">
                 This is a logic check, not a backtest. It shows whether your rules fire — not
                 whether they make money.{" "}
-                {strategy.rules &&
-                  "Your exact rules ran through the same trade logic as the bot, on a made-up price path, not real market data. "}
+                Your exact rules ran through the same trade logic as the bot, on a made-up price
+                path, not real market data.{" "}
                 Test on a demo account before going live.
               </p>
             </div>

@@ -11,7 +11,8 @@ import {
 } from "react";
 import { getBlock } from "./blocks";
 import { parsePrompt, newStrategyName } from "./parser";
-import { runStrategySimulation } from "./simulate";
+import { runStrategySimulation, strategyRules } from "./simulate";
+import { trackEvent } from "./analytics";
 import { describeRules, readbackText } from "./rules/describe";
 import { validateRules } from "./rules/validate";
 import type { BlockInstance, ClarifyingQuestion, SimulationResult, Strategy, UnmappedClause } from "./types";
@@ -41,7 +42,7 @@ function emptyStrategy(rawPrompt = ""): Strategy {
   const now = Date.now();
   return {
     id: `strat-${now}`,
-    name: newStrategyName(),
+    name: newStrategyName(rawPrompt),
     rawPrompt,
     readback: "",
     blocks: [],
@@ -174,9 +175,15 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const startFromPrompt = useCallback(async (rawPrompt: string) => {
     setParsing(true);
     const base = emptyStrategy(rawPrompt);
+    trackEvent("generation_started");
 
     const translated = await translate(rawPrompt, []);
     if (translated) {
+      // "Generation" here = the strategy was turned into buildable rules (no text is sent).
+      trackEvent(translated.rules ? "generation_succeeded" : "generation_failed", {
+        path: "ai",
+        questions: (translated.questions?.length ?? 0) > 0,
+      });
       setStrategy({ ...base, ...translated });
       setSimResult(null);
       setParsing(false);
@@ -197,14 +204,20 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
     } catch {
       // network error — fall through to the local heuristic parser below
     }
+    const path = parsed ? "ai_blocks" : "parser";
     if (!parsed) parsed = parsePrompt(rawPrompt);
 
-    setStrategy({
+    const next: Strategy = {
       ...base,
       readback: parsed.readback,
       blocks: parsed.blocks,
       unmapped: parsed.unmapped,
+    };
+    trackEvent(strategyRules(next) ? "generation_succeeded" : "generation_failed", {
+      path,
+      unmapped: parsed.unmapped.length,
     });
+    setStrategy(next);
     setSimResult(null);
     setParsing(false);
   }, []);

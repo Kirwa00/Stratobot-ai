@@ -9,6 +9,9 @@ import { ParameterSheet } from "@/components/ParameterSheet";
 import { getBlock } from "@/lib/blocks";
 import { CONFIDENCE_THRESHOLD } from "@/lib/types";
 import { useStrategyStore } from "@/lib/store";
+import { RulesReadback } from "@/components/RulesReadback";
+import { strategyRules } from "@/lib/simulate";
+import { validateRules } from "@/lib/rules/validate";
 import { RulesReadbackScreen } from "./RulesReadbackScreen";
 
 export default function ReadbackPage() {
@@ -25,6 +28,16 @@ export default function ReadbackPage() {
 
   const active = strategy.blocks.find((b) => b.instanceId === activeInstanceId) ?? null;
   const lowConfidence = strategy.blocks.filter((b) => b.confidence < CONFIDENCE_THRESHOLD);
+  // Exactly what the composer compiles, so the trader confirms what the bot will really do.
+  const rules = strategyRules(strategy);
+  const checked = rules ? validateRules(rules) : null;
+  const warnings = checked?.ok ? checked.warnings : [];
+  const oneSide =
+    rules && !rules.directionFromInput && (rules.long === null) !== (rules.short === null)
+      ? rules.long === null
+        ? "sells"
+        : "buys"
+      : null;
 
   return (
     <div className="flex flex-col flex-1">
@@ -32,10 +45,47 @@ export default function ReadbackPage() {
       <StrategyStrip blocks={strategy.blocks} onTapBlock={setActiveInstanceId} animate />
 
       <main className="flex-1 overflow-y-auto px-4 py-6 pb-32">
-        <h1 className="font-display font-bold text-xl text-chalk mb-3">
-          Here&apos;s what I understood
+        <h1 className="font-display font-bold text-xl text-chalk mb-1">
+          {rules ? "Here's what your bot will do" : "I couldn't build a bot from that yet"}
         </h1>
-        <p className="text-[15px] leading-relaxed text-chalk/90 mb-5">{strategy.readback}</p>
+        {strategy.rawPrompt && (
+          <p className="text-xs text-chalk/50 leading-relaxed mb-4">
+            You wrote: &ldquo;{strategy.rawPrompt}&rdquo;{" "}
+            <button
+              type="button"
+              onClick={() => router.push("/app#edit")}
+              className="text-secondary hover:underline focus-visible:underline"
+            >
+              Reword it
+            </button>
+          </p>
+        )}
+
+        {rules && (
+          <div className="rounded-lg border border-outline bg-slate px-4 py-4 mb-5">
+            <RulesReadback rules={rules} />
+          </div>
+        )}
+
+        {(oneSide || warnings.length > 0) && (
+          <div className="rounded-lg border border-caution/40 bg-caution-bg px-4 py-3.5 mb-5 flex flex-col gap-1.5">
+            {oneSide && (
+              <p className="text-sm text-caution flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-base leading-5">error</span>
+                <span>
+                  This bot only {oneSide}. If you meant it to {oneSide === "buys" ? "sell" : "buy"} too, add
+                  that side to your description, e.g. &ldquo;{oneSide === "buys" ? "sell" : "buy"} when&hellip;&rdquo;.
+                </span>
+              </p>
+            )}
+            {warnings.map((w) => (
+              <p key={w} className="text-sm text-caution flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-base leading-5">error</span>
+                <span>{w}</span>
+              </p>
+            ))}
+          </div>
+        )}
 
         {lowConfidence.length > 0 && (
           <div className="flex flex-col gap-1.5 mb-5">
@@ -76,11 +126,20 @@ export default function ReadbackPage() {
           </div>
         )}
 
-        {strategy.blocks.length === 0 && (
-          <div className="rounded-lg border border-outline bg-slate px-4 py-3.5 text-sm text-chalk/70">
-            I couldn&apos;t turn that into blocks yet. Try describing your entry and exit as
-            separate sentences, e.g. &ldquo;{`London killzone, sweep PDH, enter on 50% retrace`}
-            &rdquo;.
+        {!rules && (
+          <div className="rounded-lg border border-outline bg-slate px-4 py-3.5 text-sm text-chalk/70 leading-relaxed">
+            {strategy.blocks.length === 0
+              ? "I couldn't find any trading rules in that yet."
+              : "I found exit rules, but nothing that tells the bot when to open a trade."}{" "}
+            Say when to buy or sell, plus a stop loss and take profit, e.g. &ldquo;9/21 EMA cross, stop
+            loss 20 pips, take profit 40 pips&rdquo;.
+            <button
+              type="button"
+              onClick={() => router.push("/app#edit")}
+              className="block mt-2 text-secondary hover:underline"
+            >
+              Reword my strategy
+            </button>
           </div>
         )}
       </main>
@@ -91,7 +150,7 @@ export default function ReadbackPage() {
         </Button>
         <Button
           className="flex-1"
-          disabled={strategy.blocks.length === 0}
+          disabled={!rules}
           onClick={() => router.push("/simulate")}
         >
           That&apos;s right

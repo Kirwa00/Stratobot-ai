@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
 import { Footer } from "@/components/Footer";
-import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { EXAMPLE_STRATEGIES, FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { TrackView } from "@/components/TrackView";
+import { TrackedLink } from "@/components/TrackedLink";
+import { RulesReadback } from "@/components/RulesReadback";
+import { parsePrompt } from "@/lib/parser";
+import { blocksToRules } from "@/lib/rules/from-blocks";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "StratoBot AI — Turn Your Trading Strategy Into an EA",
-  description: "Describe your trading strategy in plain language. StratoBot builds a real MetaTrader 5 Expert Advisor — no MQL4/MQL5 programming, no hiring a programmer. Built for Kenyan traders, pay via M-Pesa.",
+  description: "Describe your trading strategy in plain language, review the logic, and download a real MetaTrader 5 Expert Advisor you can inspect and test. No MQL4/MQL5 programming, no hiring a programmer.",
   path: "/",
 });
 
@@ -24,51 +28,109 @@ const OLD_WAY_STEPS = [
 ];
 
 const HOW_IT_WORKS_STEPS = [
-  { icon: "edit_note", label: "Describe" },
-  { icon: "science", label: "Check it" },
-  { icon: "lock_open", label: "Unlock" },
-  { icon: "download", label: "Download" },
+  { icon: "edit_note", title: "Describe it", body: "Write your entry and exit rules the way you'd explain them to another trader." },
+  { icon: "fact_check", title: "Review the logic", body: "See exactly what the bot will do, rule by rule. Anything I can't build is flagged, not guessed." },
+  { icon: "science", title: "Check it fires", body: "A free logic check runs your exact rules on a made-up price path and explains every trade." },
+  { icon: "download", title: "Download the .mq5", body: "Get a real MQL5 source file you can open, read, compile and test in MetaTrader 5." },
 ] as const;
 
 const FEATURES = [
   { icon: "edit_note", title: "Plain-language input", body: "No technical spec required — describe entries, exits, and risk rules like you'd explain them to another trader." },
-  { icon: "code", title: "Deterministic MQL5", body: "Assembled from hand-written, pre-tested templates — never freeform AI-generated code." },
-  { icon: "download", title: "Real, compilable output", body: "An actual .mq5 file you open in MetaEditor, compile, and run — nothing locked to our platform." },
+  { icon: "code", title: "Deterministic MQL5", body: "Your rules are compiled by a deterministic compiler, not written freeform by AI. The compiler is checked against MetaTrader 5's own Strategy Tester." },
+  { icon: "download", title: "Code you can inspect", body: "An ordinary .mq5 source file you open in MetaEditor, read, compile, and run — nothing locked to our platform." },
 ];
+
+const EXAMPLE = EXAMPLE_STRATEGIES[0];
+// The real readback the app shows for this example, built by the same parser and
+// compiler the live site uses, so the homepage can't promise something the product doesn't do.
+const EXAMPLE_RULES = blocksToRules(parsePrompt(EXAMPLE).blocks);
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col flex-1">
+      <TrackView event="landing_page_view" />
       <Header />
       <main className="flex-1 overflow-y-auto px-4 py-6 pb-10 flex flex-col gap-8">
         {/* Hero */}
         <div>
           <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-signal mb-2">
-            Strategy → EA
+            Strategy → EA for MetaTrader 5
           </p>
-          <h1 className="font-display font-bold text-2xl text-chalk mb-3">
-            Turn your trading strategy into an Expert Advisor
+          <h1 className="font-display font-bold text-[28px] leading-tight text-chalk mb-3">
+            Your trading strategy. Your EA. No coding required.
           </h1>
-          <p className="text-sm text-chalk/70 leading-relaxed mb-5">
-            No MQL4/MQL5 programming required — and no hiring a programmer. You create the
-            strategy. StratoBot creates the EA.
+          <p className="text-[15px] text-chalk/75 leading-relaxed mb-5">
+            Turn your forex trading rules into an Expert Advisor for MetaTrader 5. Describe your
+            strategy, review the logic, and download code you can inspect and test.
           </p>
-          <Link href="/app">
-            <Button className="w-full">Describe your strategy — free</Button>
-          </Link>
-          <p className="text-xs text-chalk/50 mt-2 text-center">
-            Built for Kenyan traders — priced in KES, pay with M-Pesa.
+          <div className="flex flex-col gap-2.5">
+            <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "hero" }} className="w-full">
+              Build My EA
+            </TrackedLink>
+            <a
+              href="#how-it-works"
+              className="inline-flex items-center justify-center rounded-lg border border-outline text-chalk font-semibold text-[15px] px-5 py-3.5 min-h-[44px] hover:bg-slate-high hover:border-signal/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+            >
+              See How It Works
+            </a>
+          </div>
+          <p className="text-xs text-chalk/50 mt-3 text-center">
+            Free to describe and check — no account needed.
           </p>
         </div>
 
-        {/* Problem */}
+        {/* How it works */}
+        <section id="how-it-works" aria-labelledby="how-heading" className="scroll-mt-4">
+          <h2 id="how-heading" className="font-mono text-[11px] font-bold tracking-wider uppercase text-buy mb-3">
+            How it works
+          </h2>
+          <ol className="flex flex-col gap-2.5 mb-3">
+            {HOW_IT_WORKS_STEPS.map((s, i) => (
+              <li key={s.title} className="rounded-lg border border-outline bg-slate px-4 py-3 flex gap-3">
+                <span className="material-symbols-outlined text-signal text-xl shrink-0" aria-hidden="true">
+                  {s.icon}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-chalk mb-0.5">
+                    {i + 1}. {s.title}
+                  </p>
+                  <p className="text-xs text-chalk/70 leading-relaxed">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Link href="/how-it-works" className="text-sm text-secondary hover:underline">
+            See the full walkthrough →
+          </Link>
+        </section>
+
+        {/* Example: the real readback for a real description */}
+        <section aria-labelledby="example-heading">
+          <h2 id="example-heading" className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
+            Example
+          </h2>
+          <div className="rounded-lg bg-ink border border-outline px-4 py-3.5 mb-2">
+            <p className="font-mono text-[13px] text-chalk/75 leading-relaxed">
+              <span className="text-signal">&gt;</span> &ldquo;{EXAMPLE}&rdquo;
+            </p>
+          </div>
+          <p className="text-xs text-chalk/50 mb-2">This is what the app shows back before you build:</p>
+          <div className="rounded-lg border border-outline bg-slate px-4 py-4 mb-3">
+            <RulesReadback rules={EXAMPLE_RULES} />
+          </div>
+          <Link href="/demo" className="text-sm text-secondary hover:underline">
+            See the full demo walkthrough →
+          </Link>
+        </section>
+
+        {/* The problem it replaces */}
         <div>
           <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            The problem
+            The usual way
           </p>
           <p className="text-sm text-chalk/85 leading-relaxed mb-3">
-            You have a strategy, but turning it into an automated system usually means hiring an
-            MQL4/MQL5 programmer:
+            Turning a strategy into an automated system usually means hiring an MQL4/MQL5
+            programmer:
           </p>
           <div className="rounded-lg border border-outline bg-slate px-4 py-3.5 mb-3">
             <ol className="flex flex-col gap-1.5 text-sm text-chalk/60">
@@ -82,45 +144,6 @@ export default function LandingPage() {
           </div>
           <Link href="/compare/ea-programmer-alternative" className="text-sm text-secondary hover:underline">
             See the full cost &amp; time comparison →
-          </Link>
-        </div>
-
-        {/* How it works */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-buy mb-3">
-            How it works
-          </p>
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {HOW_IT_WORKS_STEPS.map((s) => (
-              <div key={s.label} className="flex flex-col items-center gap-1.5 text-center">
-                <span className="material-symbols-outlined text-signal text-xl">{s.icon}</span>
-                <span className="text-xs font-medium text-chalk">{s.label}</span>
-              </div>
-            ))}
-          </div>
-          <Link href="/how-it-works" className="text-sm text-secondary hover:underline">
-            See the full walkthrough →
-          </Link>
-        </div>
-
-        {/* Example strategy → EA output */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            Example
-          </p>
-          <div className="rounded-lg bg-ink border border-outline px-4 py-4 mb-3">
-            <p className="font-mono text-[13px] text-chalk/70 leading-relaxed">
-              <span className="text-signal">&gt;</span> &ldquo;London killzone, sweep PDH, enter on
-              50% retrace, trail stop 30 pips&rdquo;
-            </p>
-          </div>
-          <p className="text-sm text-chalk/85 leading-relaxed mb-2">
-            Becomes a real <code className="text-signal">.mq5</code> file — a session-time
-            filter, prior-day-high sweep detection, a 50% retracement entry, and a 30-pip
-            trailing stop, all assembled from tested code blocks, not freeform AI code.
-          </p>
-          <Link href="/demo" className="text-sm text-secondary hover:underline">
-            See the full demo walkthrough →
           </Link>
         </div>
 
@@ -150,9 +173,9 @@ export default function LandingPage() {
         {/* Backtesting honesty note */}
         <div className="p-3 rounded-lg border border-caution bg-caution-bg/20">
           <p className="text-xs text-chalk/80 leading-relaxed">
-            Before you download, a free logic check confirms your rules fire the way you
-            described — on a synthetic price path, not real market history. It&apos;s not a
-            backtest and not a promise of profitability.{" "}
+            Before you download, a free logic check runs your exact rules through the bot&apos;s
+            trade logic and explains every trade it takes — on a made-up price path, not real
+            market history. It&apos;s not a backtest and not a promise of profitability.{" "}
             <Link href="/backtesting" className="text-secondary hover:underline">
               Read the honest answer →
             </Link>
@@ -180,7 +203,7 @@ export default function LandingPage() {
                 KES {PRICE_KES.toLocaleString("en-KE")}
               </p>
               <p className="text-xs text-chalk/70 leading-relaxed">
-                Unlimited strategies and downloads for {PRO_DAYS} days.
+                Unlimited strategies and .mq5 downloads for {PRO_DAYS} days.
               </p>
             </div>
           </div>
@@ -190,7 +213,7 @@ export default function LandingPage() {
             </Link>
           </p>
           <p className="text-xs text-chalk/50 mt-2">
-            Built for Kenyan traders — priced in KES, pay with M-Pesa or Airtel Money.
+            We&apos;re in beta: payments aren&apos;t live yet, so Pro is free for now.
           </p>
         </div>
 
@@ -208,6 +231,13 @@ export default function LandingPage() {
         </div>
 
         <CtaBanner />
+
+        <p className="text-xs text-chalk/50 leading-relaxed">
+          <span className="font-semibold text-chalk/70">Risk warning:</span> trading forex and CFDs
+          on margin carries a high risk of losing money, including more than you deposit with some
+          brokers. StratoBot builds the EA you describe; it doesn&apos;t give trading advice and
+          can&apos;t make a strategy profitable. Test every EA on a demo account first.
+        </p>
 
         <Footer />
       </main>

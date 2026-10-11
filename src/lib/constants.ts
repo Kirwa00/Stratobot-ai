@@ -10,3 +10,12 @@ export const PRICE_KES = 2500;
  *  30-day Pro pass (via markPaid()) without paying — not a per-user secret,
  *  same trust model as the rest of this no-backend app. */
 export const BETA_CODE = "STRATOBETA30";
+
+/** Example descriptions offered to first-time users (builder, homepage, demo).
+ *  examples.test.ts checks each one builds a two-sided bot with a stop loss that
+ *  actually trades, through the same parser the live site uses. */
+export const EXAMPLE_STRATEGIES = [
+  "9/21 EMA cross, stop loss 20 pips, take profit 40 pips",
+  "London session only, enter on a bullish or bearish engulfing candle, stop loss 15 pips, take profit 30 pips",
+  "MACD cross in either direction during the New York session, stop loss 20 pips, trailing stop 25 pips",
+];

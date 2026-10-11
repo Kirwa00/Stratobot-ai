@@ -2,6 +2,14 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { buildMetadata } from "@/lib/seo";
+import { RulesReadback } from "@/components/RulesReadback";
+import { EXAMPLE_STRATEGIES, PRO_DAYS } from "@/lib/constants";
+import { parsePrompt } from "@/lib/parser";
+import { blocksToRules } from "@/lib/rules/from-blocks";
+
+const EXAMPLE = EXAMPLE_STRATEGIES[0];
+// Produced by the same parser and compiler the live app uses, so the demo shows real output.
+const EXAMPLE_RULES = blocksToRules(parsePrompt(EXAMPLE).blocks);
 
 export const metadata = buildMetadata({
   title: "See StratoBot in Action — Demo Walkthrough",
@@ -14,38 +22,38 @@ const STAGES = [
     n: "01",
     icon: "edit_note",
     title: "You describe it",
-    body: `"London killzone, sweep PDH, enter on 50% retrace, trail stop 30 pips"`,
+    body: `"${EXAMPLE}"`,
     isQuote: true,
   },
   {
     n: "02",
     icon: "fact_check",
-    title: "StratoBot reads it back",
-    body: "A plain-language summary of exactly what it understood — a session-time filter for London, prior-day-high sweep detection, a 50% retracement entry, and a 30-pip trailing stop. Anything it couldn't map gets flagged, not silently guessed.",
+    title: "StratoBot shows what the bot will do",
+    body: "A rule-by-rule readback generated from the exact rules that get compiled (shown below for this example). Anything it couldn't build is flagged, and one-sided bots or missing exits get a warning.",
   },
   {
     n: "03",
     icon: "widgets",
-    title: "You see it as blocks",
-    body: "Each rule is now an editable block. Reorder them, tweak parameters, or add ones the description missed.",
+    title: "Adjust it",
+    body: "Reword your description, or edit the rules as blocks: change parameters, reorder, add what the description missed.",
   },
   {
     n: "04",
     icon: "science",
     title: "Free logic check",
-    body: "A synthetic simulation runs your rules and reports how many trades fired, the buy/sell split, and the longest gap between signals — confirming the logic behaves the way you described. Not a backtest, not a profit forecast.",
+    body: "Your exact rules run through the same trade logic as the EA on a made-up price path. You see every trade it took, why it opened, and how it closed. Not a backtest, not a profit forecast.",
   },
   {
     n: "05",
     icon: "lock_open",
     title: "Unlock",
-    body: "Happy with it? Unlock 30 days of unlimited strategies and downloads.",
+    body: `Activate a ${PRO_DAYS}-day Pro pass (free while StratoBot is in beta).`,
   },
   {
     n: "06",
     icon: "download",
     title: "Real .mq5 file",
-    body: "Download a genuine, compilable MQL5 file — open it in MetaEditor, compile it, and run it in MetaTrader 5.",
+    body: "Download an MQL5 source file you can read, compile in MetaEditor, and test in MetaTrader 5's Strategy Tester before using it on a demo account.",
   },
 ];
 
@@ -86,11 +94,20 @@ export default function DemoPage() {
           ))}
         </div>
 
+        <section aria-labelledby="demo-readback">
+          <h2 id="demo-readback" className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-2">
+            Step 02 for this example, as the app shows it
+          </h2>
+          <div className="rounded-lg border border-outline bg-slate px-4 py-4">
+            <RulesReadback rules={EXAMPLE_RULES} />
+          </div>
+        </section>
+
         <div className="p-3 rounded-lg border border-caution bg-caution-bg/20">
           <p className="text-xs text-chalk/80 leading-relaxed">
-            This walkthrough is real — it&apos;s the same flow the live app uses. It isn&apos;t a
-            substitute for trying it yourself, and the logic check isn&apos;t proof any strategy
-            will be profitable.
+            This is a demonstration of the live flow with one example strategy. Nothing here is a
+            trading result: the logic check uses a made-up price path and isn&apos;t evidence that
+            any strategy will be profitable.
           </p>
         </div>
 

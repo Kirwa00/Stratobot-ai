@@ -8,6 +8,7 @@ import { AffiliateCard } from "@/components/AffiliateCard";
 import { AFFILIATE_OFFERS } from "@/lib/affiliates";
 import { useStrategyStore } from "@/lib/store";
 import { composeStrategyFile, downloadFile } from "@/lib/composer";
+import { trackEvent } from "@/lib/analytics";
 
 export default function DownloadPage() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function DownloadPage() {
     acceptDisclaimer();
     const slug = strategy.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     downloadFile(`${slug || "stratobot-ea"}.mq5`, composed.code);
+    trackEvent("ea_downloaded", { source: strategy.rules ? "ai" : "blocks" });
     setDownloaded(true);
   }
 
@@ -40,7 +42,7 @@ export default function DownloadPage() {
         <main className="flex-1 flex flex-col items-center justify-center text-center px-8 gap-4">
           <span className="material-symbols-outlined text-caution text-4xl">error</span>
           <p className="text-sm text-chalk/80 leading-relaxed">{composed.error}</p>
-          <Button className="mt-4 w-full" onClick={() => router.push("/adjust")}>
+          <Button className="mt-4 w-full" onClick={() => router.push(strategy.rules ? "/app#edit" : "/adjust")}>
             Edit my strategy
           </Button>
         </main>
@@ -66,8 +68,20 @@ export default function DownloadPage() {
               {proDaysLeft} day{proDaysLeft === 1 ? "" : "s"} left on this Pro pass.
             </p>
           )}
+          <ol className="w-full text-left mt-2 flex flex-col gap-1.5 text-sm text-chalk/80">
+            {[
+              "Open MetaEditor from MetaTrader 5 and open the .mq5 file.",
+              "Compile it (F7) and check it reports 0 errors.",
+              "Test it in MT5's Strategy Tester, then on a demo account.",
+            ].map((step, i) => (
+              <li key={step} className="flex gap-2">
+                <span className="font-mono text-xs text-chalk/40 mt-0.5">{i + 1}.</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
           <Button className="mt-4 w-full" onClick={() => router.push("/install")}>
-            How do I install this?
+            Step-by-step install guide
           </Button>
           <div className="w-full text-left">
             <AffiliateCard offer={AFFILIATE_OFFERS.demoBroker} />
@@ -88,7 +102,7 @@ export default function DownloadPage() {
         <ul className="flex flex-col gap-2.5 text-sm text-chalk/85">
           {[
             "It does what your rules say — not necessarily what makes money.",
-            "The simulation used 100 candles. That is not proof.",
+            "The logic check used a short, made-up price path. That is not proof.",
             "Run it on a demo account first.",
           ].map((line) => (
             <li key={line} className="flex items-start gap-2">

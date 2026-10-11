@@ -1,30 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { RulesReadback } from "@/components/RulesReadback";
 import { useStrategyStore } from "@/lib/store";
-import { BETA_CODE, PRICE_KES } from "@/lib/constants";
+import { BETA_CODE, PRICE_KES, PRO_DAYS } from "@/lib/constants";
+import { trackEvent } from "@/lib/analytics";
+import { strategyRules } from "@/lib/simulate";
 
 export default function UnlockPage() {
   const router = useRouter();
   const { hydrated, strategy, paid, markPaid } = useStrategyStore();
-  const [processing, setProcessing] = useState(false);
-  const pendingPayment = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [betaCode, setBetaCode] = useState("");
-  const [betaError, setBetaError] = useState(false);
-
-  function redeemBeta() {
-    if (betaCode.trim().toUpperCase() === BETA_CODE) {
-      markPaid();
-    } else {
-      setBetaError(true);
-    }
-  }
-
   useEffect(() => {
     if (hydrated && !strategy) router.replace("/app");
   }, [hydrated, strategy, router]);
@@ -33,25 +22,27 @@ export default function UnlockPage() {
     if (paid) router.replace("/building");
   }, [paid, router]);
 
-  // Cancel the in-flight mock confirmation if the trader navigates away
-  // before it resolves — a real webhook/polling confirmation should never
-  // mark a payment complete after the user has already left the flow.
+  const [betaCode, setBetaCode] = useState("");
+  const [betaError, setBetaError] = useState(false);
+
   useEffect(() => {
-    return () => {
-      if (pendingPayment.current) clearTimeout(pendingPayment.current);
-    };
+    trackEvent("pricing_viewed", { page: "unlock" }, { oncePerSession: true });
   }, []);
 
   if (!strategy) return null;
 
-  function pay(method: string) {
-    setProcessing(true);
-    // No real payment processor is wired up in this build — see README.
-    // This simulates the webhook-confirmed flow described in the UX plan.
-    pendingPayment.current = setTimeout(() => {
-      markPaid();
-    }, 1400);
-    void method;
+  // Payments aren't live yet (no provider is wired up; see
+  // docs/conversion-sprint-audit.md). The previous screen simulated an M-Pesa
+  // charge and then granted the pass anyway; this grants the same pass and says so.
+  function activateBetaPass() {
+    trackEvent("checkout_started", { method: "beta_free" });
+    markPaid();
+  }
+
+  function redeemBeta() {
+    if (betaCode.trim().toUpperCase() !== BETA_CODE) return setBetaError(true);
+    trackEvent("checkout_started", { method: "beta_code" });
+    markPaid();
   }
 
   return (
@@ -66,8 +57,8 @@ export default function UnlockPage() {
           <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
             What it does
           </p>
-          {strategy.rules ? (
-            <RulesReadback rules={strategy.rules} />
+          {strategyRules(strategy) ? (
+            <RulesReadback rules={strategyRules(strategy)!} />
           ) : (
             <p className="text-sm text-chalk/85 leading-relaxed">{strategy.readback}</p>
           )}
@@ -83,14 +74,13 @@ export default function UnlockPage() {
             </p>
           </div>
           <p className="text-xs text-chalk/50 mb-3">
-            Unlocks unlimited access for 30 days. Not an auto-renewing subscription — pay again
-            after it expires if you want to keep going.
+            Unlocks unlimited access for {PRO_DAYS} days. Not an auto-renewing subscription.
           </p>
           <ul className="flex flex-col gap-2 text-sm text-chalk/85">
             {[
               "Your strategy as an MQL5 (.mq5) file, ready to compile in MetaTrader",
-              "Unlimited simulations for 30 days",
-              "Unlimited strategies and downloads for 30 days",
+              `Unlimited logic checks for ${PRO_DAYS} days`,
+              `Unlimited strategies and downloads for ${PRO_DAYS} days`,
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-signal text-base mt-0.5">check</span>
@@ -107,47 +97,32 @@ export default function UnlockPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <Button className="w-full" disabled={processing} onClick={() => pay("mpesa")}>
-            {processing ? "Processing…" : "Pay with M-Pesa"}
-          </Button>
-          <div className="flex gap-3">
-            <Button
-              variant="ghost"
-              className="flex-1"
-              disabled={processing}
-              onClick={() => pay("airtel")}
-            >
-              Airtel Money
-            </Button>
-            <Button
-              variant="ghost"
-              className="flex-1"
-              disabled={processing}
-              onClick={() => pay("card")}
-            >
-              Card
-            </Button>
-          </div>
+        <div className="rounded-lg border border-buy/40 bg-slate px-4 py-3.5">
+          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-buy mb-1.5">
+            Free during the beta
+          </p>
+          <p className="text-sm text-chalk/85 leading-relaxed">
+            Payments aren&apos;t live yet, so Pro is free while we&apos;re in beta. No card or
+            M-Pesa details needed. When payments open, Pro will cost KES{" "}
+            {PRICE_KES.toLocaleString("en-KE")} for {PRO_DAYS} days.
+          </p>
         </div>
 
+        <Button className="w-full" onClick={activateBetaPass}>
+          Activate my free {PRO_DAYS}-day pass
+        </Button>
+
         <p className="text-xs text-chalk/50 text-center leading-relaxed">
-          Your strategy is saved. Nothing is lost if you come back later.
+          Your strategy is saved in this browser. Nothing is lost if you come back later.
         </p>
 
         <div className="rounded-lg border border-outline bg-slate px-4 py-3.5">
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
-            Beta tester?
-          </p>
-          <p className="text-xs text-chalk/70 mb-3 leading-relaxed">
-            If you signed up on our{" "}
-            <a href="/beta" className="text-secondary hover:underline">
-              beta desk
-            </a>{" "}
-            and got a code by email, redeem it here for a free 30-day Pro pass.
-          </p>
+          <label htmlFor="beta-code" className="block text-xs text-chalk/70 mb-2 leading-relaxed">
+            Got a beta code by email? You can enter it here (it unlocks the same pass).
+          </label>
           <div className="flex gap-2">
             <input
+              id="beta-code"
               value={betaCode}
               onChange={(e) => {
                 setBetaCode(e.target.value);
@@ -161,7 +136,9 @@ export default function UnlockPage() {
             </Button>
           </div>
           {betaError && (
-            <p className="text-xs text-sell mt-2">That code didn&apos;t match. Check your email.</p>
+            <p role="alert" className="text-xs text-sell mt-2">
+              That code didn&apos;t match. Check your email, or just use the free pass above.
+            </p>
           )}
         </div>
       </main>

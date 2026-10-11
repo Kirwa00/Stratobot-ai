@@ -41,15 +41,9 @@ export function composeMQL5FromStrategy(strategy: Strategy): ComposeResult {
       "None of your rules decides buy vs. sell, so the bot won't trade until you set its \"If no rule picks a direction\" input to Buy or Sell in MetaTrader."
     );
   }
-  if (rules.sizing.riskPercent && !rules.exits.stopLoss) {
-    notes.push("Risk Per Trade needs a Stop Loss to size trades from, and this strategy has none, so it uses a fixed lot size instead.");
-  }
-  if (rules.guards.minRewardRisk && !(rules.exits.stopLoss && rules.exits.takeProfit)) {
-    notes.push("Risk : Reward compares your Take Profit to your Stop Loss, so it has no effect unless the strategy has both.");
-  }
-  if (rules.guards.news) {
-    notes.push("The News Filter uses MetaTrader's live economic calendar, which doesn't exist in the Strategy Tester, so backtests will ignore it.");
-  }
+  // Same checks as AI-built strategies: no stop for risk sizing, nothing that closes trades, etc.
+  const checked = validateRules(rules);
+  if (checked.ok) notes.push(...checked.warnings);
 
   const code = compileRules(rules, { name: strategy.name, id: strategy.id, updatedAt: strategy.updatedAt });
   return { ok: true, code, notes };

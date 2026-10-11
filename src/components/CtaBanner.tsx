@@ -18,9 +18,9 @@ export function CtaBanner({
         <Button className="w-full">{ctaText}</Button>
       </Link>
       <p className="text-xs text-chalk/50">
-        Want 30 days free?{" "}
+        Want to help shape it?{" "}
         <Link href="/beta" className="text-secondary hover:underline">
-          Join the beta
+          Join the beta desk
         </Link>
       </p>
     </div>

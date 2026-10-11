@@ -6,12 +6,8 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { useStrategyStore } from "@/lib/store";
-
-const EXAMPLES = [
-  "London killzone, sweep PDH, enter on 50% retrace, trail stop 30 pips",
-  "Wait for a bullish order block in New York, enter on engulfing candle",
-  "9/21 EMA cross when ATR is above average, trail stop 20 pips",
-];
+import { trackEvent } from "@/lib/analytics";
+import { EXAMPLE_STRATEGIES as EXAMPLES } from "@/lib/constants";
 
 const HOW_IT_WORKS_KEY = "stratobot.howItWorksDismissed.v1";
 
@@ -128,9 +124,14 @@ export function AppClient() {
     setListening(true);
   }
 
+  useEffect(() => {
+    trackEvent("strategy_builder_opened", undefined, { oncePerSession: true });
+  }, []);
+
   async function submit(value: string) {
     const trimmed = value.trim();
     if (!trimmed || parsing) return;
+    trackEvent("strategy_submitted", { source: EXAMPLES.includes(trimmed) ? "example" : "typed" });
     await startFromPrompt(trimmed);
     router.push("/readback");
   }
@@ -145,9 +146,15 @@ export function AppClient() {
 
         {showHowItWorks && <HowItWorks onDismiss={dismissHowItWorks} />}
 
-        <h1 className="font-display font-bold text-2xl text-chalk mb-4">
+        <h1 className="font-display font-bold text-2xl text-chalk mb-2">
           What&apos;s your strategy?
         </h1>
+        <p id="strategy-help" className="text-sm text-chalk/60 leading-relaxed mb-4">
+          Say <span className="text-chalk/85">when to buy and when to sell</span>, your{" "}
+          <span className="text-chalk/85">stop loss</span> and{" "}
+          <span className="text-chalk/85">take profit</span> (in pips), and any session or
+          timeframe. Anything I can&apos;t build gets flagged, not guessed.
+        </p>
 
         <div className="relative">
           <textarea
@@ -155,6 +162,8 @@ export function AppClient() {
             onChange={(e) => setText(e.target.value)}
             rows={5}
             placeholder="Type it the way you'd explain it to another trader."
+            aria-label="Your trading strategy"
+            aria-describedby="strategy-help"
             className="w-full resize-none rounded-lg border border-outline bg-slate text-chalk placeholder:text-chalk/40 px-4 py-3.5 pr-14 text-[15px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-secondary"
           />
           {canListen && (
@@ -172,6 +181,9 @@ export function AppClient() {
 
         {!text && (
           <div className="mt-4 flex flex-col gap-2">
+            <p className="text-xs font-mono uppercase tracking-wider text-chalk/40">
+              Or start from an example
+            </p>
             {EXAMPLES.map((ex) => (
               <button
                 key={ex}

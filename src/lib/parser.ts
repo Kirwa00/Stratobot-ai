@@ -46,9 +46,13 @@ function extractPercent(text: string): string | undefined {
 }
 
 /** Bull/bear direction, shared by every block whose only param is a side. */
-function extractDirection(text: string): "Bullish" | "Bearish" | undefined {
-  if (/bear|short|sell|down/i.test(text)) return "Bearish";
-  if (/bull|long|buy|up/i.test(text)) return "Bullish";
+function extractDirection(text: string): "Bullish" | "Bearish" | "Either" | undefined {
+  // Whole words only: "setup" or "upper" must not read as "up".
+  const bear = /\b(bear\w*|short|sell\w*|down)\b/i.test(text);
+  const bull = /\b(bull\w*|long|buy\w*|up)\b/i.test(text);
+  if ((bear && bull) || /\b(either|both)\b/i.test(text)) return "Either";
+  if (bear) return "Bearish";
+  if (bull) return "Bullish";
   return undefined;
 }
 
@@ -263,6 +267,25 @@ export function parsePrompt(input: string): ParseResult {
             continue;
           }
         }
+        if (matched.id === "ma_cross") {
+          // "9/21 EMA", "50/200 SMA", "20-50 ema": two periods, fast first. ("and" splits clauses, so it never reaches here.)
+          const periods = clause.match(/\b(\d{1,3})\s*(?:\/|-|and|&)\s*(\d{1,3})\b/i);
+          const a = periods ? Number(periods[1]) : NaN;
+          const b = periods ? Number(periods[2]) : NaN;
+          if ((p.key === "fast" || p.key === "slow") && a > 0 && b > 0 && a !== b && Math.max(a, b) <= 200 && Math.min(a, b) <= 100) {
+            params[p.key] = p.key === "fast" ? Math.min(a, b) : Math.max(a, b);
+            hadExplicitParam = true;
+            continue;
+          }
+          if (p.key === "type") {
+            const type = /\bsma\b|simple/i.test(clause) ? "SMA" : /\bema\b|exponential/i.test(clause) ? "EMA" : null;
+            if (type) {
+              params.type = type;
+              hadExplicitParam = true;
+              continue;
+            }
+          }
+        }
         if (matched.id === "htf_confirmation" && p.key === "timeframe") {
           if (/weekly/i.test(clause)) {
             params.timeframe = "Weekly";
@@ -299,13 +322,13 @@ export function parsePrompt(input: string): ParseResult {
   };
 }
 
-export function newStrategyName(): string {
-  const names = [
-    "Session Sweep",
-    "Fib Retrace",
-    "Trend Cross",
-    "Structure Break",
-    "Gap Fill",
-  ];
-  return names[Math.floor(Math.random() * names.length)];
+/** A name taken from the trader's own words (first phrase of the description),
+ *  used for the EA's title and download filename. Random stock names used to
+ *  label an EMA strategy "Fib Retrace". */
+export function newStrategyName(rawPrompt = ""): string {
+  const first = rawPrompt.split(/[,.;:\n]/)[0].trim().replace(/\s+/g, " ");
+  if (!first) return "My strategy";
+  if (first.length <= 40) return first;
+  const cut = first.slice(0, 40);
+  return `${cut.slice(0, cut.lastIndexOf(" ") > 20 ? cut.lastIndexOf(" ") : 40).trim()}…`;
 }
