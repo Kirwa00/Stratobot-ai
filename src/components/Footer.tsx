@@ -42,7 +42,7 @@ const GROUPS: { title: string; links: { href: string; label: string }[] }[] = [
 export function Footer() {
   return (
     <footer className="border-t border-outline pt-6 mt-2">
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {GROUPS.map((g) => (
           <div key={g.title}>
             <p className="font-mono text-[10px] font-bold tracking-wider uppercase text-chalk/40 mb-2">

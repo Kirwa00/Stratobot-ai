@@ -1,25 +1,25 @@
 import Link from "next/link";
-import { Button } from "@/components/Button";
+import { TrackedLink } from "@/components/TrackedLink";
 
 export function CtaBanner({
   title = "Give us your trading strategy",
-  body = "Describe it in plain language and see if the logic check reads your rules correctly — free, no account needed.",
-  ctaText = "Describe your strategy",
+  body = "Describe it in plain language and see exactly what your bot will do. Free, no account needed.",
+  ctaText = "Build My EA",
 }: {
   title?: string;
   body?: string;
   ctaText?: string;
 }) {
   return (
-    <div className="rounded-lg border border-signal/40 bg-slate px-4 py-5 text-center flex flex-col items-center gap-3">
-      <p className="font-display font-bold text-lg text-chalk">{title}</p>
-      <p className="text-sm text-chalk/70 leading-relaxed max-w-[32ch]">{body}</p>
-      <Link href="/app" className="w-full">
-        <Button className="w-full">{ctaText}</Button>
-      </Link>
-      <p className="text-xs text-chalk/50">
+    <div className="rounded-2xl border border-outline bg-slate shadow-soft px-5 py-7 text-center flex flex-col items-center gap-3">
+      <p className="font-display text-2xl text-chalk">{title}</p>
+      <p className="text-sm text-chalk/70 leading-relaxed max-w-[36ch]">{body}</p>
+      <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "banner" }} className="!rounded-full !px-7 mt-1">
+        {ctaText}
+      </TrackedLink>
+      <p className="text-xs text-chalk/55">
         Want to help shape it?{" "}
-        <Link href="/beta" className="text-secondary hover:underline">
+        <Link href="/beta" className="underline underline-offset-2 hover:text-chalk">
           Join the beta desk
         </Link>
       </p>

@@ -12,7 +12,7 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none button-press";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none button-press";
 
 const sizes: Record<Size, string> = {
   default: "text-[15px] px-5 py-3.5 min-h-[44px]",
@@ -20,7 +20,7 @@ const sizes: Record<Size, string> = {
 };
 
 const styles: Record<Variant, string> = {
-  primary: "bg-signal text-white hover:bg-signal-dim active:bg-signal-dim hover:shadow-lg hover:shadow-signal/20",
+  primary: "bg-signal text-on-signal hover:bg-signal-dim active:bg-signal-dim",
   ghost:
     "bg-transparent border border-outline text-chalk hover:bg-slate-high active:bg-slate-high hover:border-signal/50",
   "danger-ghost": "bg-transparent border border-outline text-sell hover:bg-slate-high hover:border-sell/50",

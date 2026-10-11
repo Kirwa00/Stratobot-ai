@@ -84,7 +84,7 @@ export default function BacktestPage() {
                 disabled={n > simsRemaining && n !== runCount}
                 className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-30 disabled:pointer-events-none ${
                   runCount === n
-                    ? "bg-signal text-white border-signal"
+                    ? "bg-signal text-on-signal border-signal"
                     : "bg-slate text-chalk/70 border-outline hover:bg-slate-high"
                 }`}
               >

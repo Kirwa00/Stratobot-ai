@@ -22,13 +22,13 @@ export function TrackedLink({
 }) {
   const look =
     variant === "primary"
-      ? "bg-signal text-white hover:bg-signal-dim hover:shadow-lg hover:shadow-signal/20"
+      ? "bg-signal text-on-signal hover:bg-signal-dim"
       : "bg-transparent border border-outline text-chalk hover:bg-slate-high hover:border-signal/50";
   return (
     <Link
       href={href}
       onClick={() => trackEvent(event, props)}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 button-press text-[15px] px-5 py-3.5 min-h-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal ${look} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-150 button-press text-[15px] px-5 py-3.5 min-h-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal ${look} ${className}`}
     >
       {children}
     </Link>

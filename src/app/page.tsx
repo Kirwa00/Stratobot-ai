@@ -1,14 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { Footer } from "@/components/Footer";
 import { EXAMPLE_STRATEGIES, FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
 import { TrackView } from "@/components/TrackView";
 import { TrackedLink } from "@/components/TrackedLink";
 import { RulesReadback } from "@/components/RulesReadback";
+import { SimulationChart } from "@/components/SimulationChart";
 import { parsePrompt } from "@/lib/parser";
 import { blocksToRules } from "@/lib/rules/from-blocks";
+import { simulateRules } from "@/lib/rules/synthetic";
+import { compileRules } from "@/lib/rules/compile-mql5";
 import { buildMetadata } from "@/lib/seo";
+import heroImage from "../../public/images/hero-trader-desk.jpg";
 
 export const metadata = buildMetadata({
   title: "StratoBot AI — Turn Your Trading Strategy Into an EA",
@@ -16,227 +20,314 @@ export const metadata = buildMetadata({
   path: "/",
 });
 
-const OLD_WAY_STEPS = [
+const NAV = [
+  { href: "#how-it-works", label: "How it works" },
+  { href: "/demo", label: "Demo" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/learn", label: "Learn" },
+];
+
+const STEPS = [
+  { icon: "edit_note", title: "Describe it", body: "Write your entry and exit rules the way you'd explain them to another trader." },
+  { icon: "fact_check", title: "Review the logic", body: "See exactly what the bot will do, rule by rule. Anything it can't build is flagged, not guessed." },
+  { icon: "science", title: "Check it fires", body: "A free logic check runs your exact rules on a made-up price path and explains every trade." },
+  { icon: "download", title: "Download the .mq5", body: "A real MQL5 source file you open, read, compile and test in MetaTrader 5." },
+] as const;
+
+const OLD_WAY = [
   "Write a technical spec",
   "Find an MQL4/MQL5 programmer",
   "Explain the strategy, repeatedly",
-  "Pay upfront",
-  "Wait 2–4+ weeks",
-  "Test it yourself",
-  "Request revisions",
-  "Pay again",
+  "Pay upfront and wait 2 to 4+ weeks",
+  "Test it yourself, request revisions, pay again",
 ];
 
-const HOW_IT_WORKS_STEPS = [
-  { icon: "edit_note", title: "Describe it", body: "Write your entry and exit rules the way you'd explain them to another trader." },
-  { icon: "fact_check", title: "Review the logic", body: "See exactly what the bot will do, rule by rule. Anything I can't build is flagged, not guessed." },
-  { icon: "science", title: "Check it fires", body: "A free logic check runs your exact rules on a made-up price path and explains every trade." },
-  { icon: "download", title: "Download the .mq5", body: "Get a real MQL5 source file you can open, read, compile and test in MetaTrader 5." },
-] as const;
-
-const FEATURES = [
-  { icon: "edit_note", title: "Plain-language input", body: "No technical spec required — describe entries, exits, and risk rules like you'd explain them to another trader." },
-  { icon: "code", title: "Deterministic MQL5", body: "Your rules are compiled by a deterministic compiler, not written freeform by AI. The compiler is checked against MetaTrader 5's own Strategy Tester." },
-  { icon: "download", title: "Code you can inspect", body: "An ordinary .mq5 source file you open in MetaEditor, read, compile, and run — nothing locked to our platform." },
+const NEW_WAY = [
+  "Describe the strategy in your own words",
+  "Confirm a rule-by-rule readback",
+  "Watch it trade on a free logic check",
+  "Download the .mq5 the same day",
 ];
 
+// Everything in the product preview is real output for the example strategy,
+// produced at build time by the same parser, compiler and trade engine the app
+// uses. Nothing in it is a mock-up or a performance claim.
 const EXAMPLE = EXAMPLE_STRATEGIES[0];
-// The real readback the app shows for this example, built by the same parser and
-// compiler the live site uses, so the homepage can't promise something the product doesn't do.
 const EXAMPLE_RULES = blocksToRules(parsePrompt(EXAMPLE).blocks);
+const EXAMPLE_CHECK = (() => {
+  for (let run = 0; run < 8; run++) {
+    const r = simulateRules(EXAMPLE_RULES, run);
+    if (r.trades.length >= 2) return r;
+  }
+  return simulateRules(EXAMPLE_RULES, 0);
+})();
+const EXAMPLE_TRADE = EXAMPLE_CHECK.trades.find((t) => t.exitWhy) ?? EXAMPLE_CHECK.trades[0];
+const MQL5_EXCERPT = compileRules(EXAMPLE_RULES, { name: "9/21 EMA cross", id: "example", updatedAt: 0 })
+  .split("\n")
+  .filter((line) => /^input \w+\s+(Ma\d+_Period|InpLots|InpStopLossPips|InpTakeProfitPips)\b/.test(line))
+  .map((line) => line.replace(/\s+/g, " "));
+
+function ProductPreview() {
+  return (
+    <div className="rounded-2xl border border-outline bg-slate shadow-lift overflow-hidden text-left">
+      <div className="flex items-center justify-between gap-3 px-4 md:px-5 py-3 border-b border-outline">
+        <span className="font-display text-lg text-chalk">StratoBot</span>
+        <span className="hidden sm:flex items-center gap-1 rounded-full bg-slate-high px-1 py-1 text-xs text-chalk/70">
+          {["Describe", "Review", "Check", "Download"].map((s, i) => (
+            <span key={s} className={`rounded-full px-3 py-1 ${i === 1 ? "bg-signal text-on-signal" : ""}`}>
+              {s}
+            </span>
+          ))}
+        </span>
+      </div>
+      <div className="grid md:grid-cols-[1.05fr_1fr]">
+        <div className="min-w-0 p-4 md:p-6 md:border-r border-outline">
+          <p className="text-xs text-chalk/50 mb-1">You wrote</p>
+          <p className="text-sm text-chalk mb-4">&ldquo;{EXAMPLE}&rdquo;</p>
+          <div className="rounded-xl bg-ink/60 border border-outline px-4 py-4">
+            <RulesReadback rules={EXAMPLE_RULES} />
+          </div>
+        </div>
+        <div className="min-w-0 p-4 md:p-6 border-t md:border-t-0 border-outline flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold text-chalk">Free logic check</p>
+            <p className="text-xs text-chalk/55">
+              {EXAMPLE_CHECK.trades.length} trades over {EXAMPLE_CHECK.candles.length} candles of a made-up price path
+            </p>
+          </div>
+          <SimulationChart result={EXAMPLE_CHECK} />
+          {EXAMPLE_TRADE?.why && (
+            <div className="rounded-xl border border-outline px-3.5 py-3">
+              <p className="text-xs font-semibold text-chalk mb-1.5">
+                Why the {EXAMPLE_TRADE.direction} on candle {EXAMPLE_TRADE.candle + 1} happened
+              </p>
+              <ul className="flex flex-col gap-1 text-xs text-chalk/75 leading-relaxed">
+                {EXAMPLE_TRADE.why.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+                {EXAMPLE_TRADE.exitWhy && <li className="text-chalk/60">{EXAMPLE_TRADE.exitWhy}</li>}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="px-4 md:px-5 py-3 border-t border-outline text-xs text-chalk/60 text-center">
+        Real output for this example. The logic check uses a made-up price path, not market
+        history, and isn&apos;t a backtest or a profit forecast.
+      </p>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col flex-1">
       <TrackView event="landing_page_view" />
-      <Header />
-      <main className="flex-1 overflow-y-auto px-4 py-6 pb-10 flex flex-col gap-8">
-        {/* Hero */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-signal mb-2">
-            Strategy → EA for MetaTrader 5
-          </p>
-          <h1 className="font-display font-bold text-[28px] leading-tight text-chalk mb-3">
-            Your trading strategy. Your EA. No coding required.
+
+      {/* Hero, over a soft trader's-desk photograph */}
+      <div className="relative isolate overflow-hidden">
+        <Image
+          src={heroImage}
+          alt=""
+          priority
+          placeholder="blur"
+          sizes="100vw"
+          className="absolute inset-0 -z-20 h-full w-full object-cover object-bottom opacity-90 dark:opacity-25"
+        />
+        {/* Fade the photo in behind the headline and out into the page below. */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-ink/95 via-ink/45 to-transparent" aria-hidden="true" />
+        <div className="absolute inset-x-0 bottom-0 h-40 -z-10 bg-gradient-to-t from-ink to-transparent" aria-hidden="true" />
+
+        <header className="mx-auto max-w-6xl px-5 md:px-8 h-[68px] flex items-center justify-between gap-4">
+          <Link href="/" className="font-display text-2xl text-chalk">
+            StratoBot
+          </Link>
+          <nav aria-label="Main" className="hidden md:flex items-center gap-8 text-[15px] text-chalk/80">
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href} className="hover:text-chalk">
+                {n.label}
+              </a>
+            ))}
+          </nav>
+          <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "nav" }} className="!rounded-full !px-5 !py-2.5 !min-h-[40px] text-sm">
+            Build My EA
+          </TrackedLink>
+        </header>
+
+        <section className="mx-auto max-w-6xl px-5 md:px-8 pt-10 md:pt-16 pb-16 md:pb-24 text-center">
+          <a
+            href="#how-it-works"
+            className="inline-flex items-center gap-2 rounded-full border border-outline bg-slate/80 backdrop-blur px-1.5 py-1 pr-3.5 text-xs md:text-sm text-chalk/80 shadow-soft"
+          >
+            <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-on-signal">New</span>
+            A free logic check that explains every trade
+          </a>
+
+          <h1 className="font-display text-[38px] leading-[1.04] sm:text-5xl md:text-7xl md:leading-[0.98] mt-6 mb-5">
+            <span className="block text-chalk/45">Your trading strategy.</span>
+            <span className="block text-chalk">Your EA. No coding required.</span>
           </h1>
-          <p className="text-[15px] text-chalk/75 leading-relaxed mb-5">
-            Turn your forex trading rules into an Expert Advisor for MetaTrader 5. Describe your
+          <p className="mx-auto max-w-[34rem] text-base md:text-lg text-chalk/70 leading-relaxed mb-8">
+            Turn your forex trading rules into an Expert Advisor for MetaTrader&nbsp;5. Describe your
             strategy, review the logic, and download code you can inspect and test.
           </p>
-          <div className="flex flex-col gap-2.5">
-            <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "hero" }} className="w-full">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-sm sm:max-w-none mx-auto">
+            <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "hero" }} className="!rounded-full !px-7">
               Build My EA
             </TrackedLink>
             <a
               href="#how-it-works"
-              className="inline-flex items-center justify-center rounded-lg border border-outline text-chalk font-semibold text-[15px] px-5 py-3.5 min-h-[44px] hover:bg-slate-high hover:border-signal/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
+              className="inline-flex items-center justify-center gap-3 rounded-full border border-outline bg-slate/80 backdrop-blur text-chalk font-semibold text-[15px] pl-6 pr-2 py-2 min-h-[44px] hover:bg-slate focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal"
             >
               See How It Works
+              <span className="material-symbols-outlined rounded-full bg-slate-high p-1.5 text-lg" aria-hidden="true">
+                south
+              </span>
             </a>
           </div>
-          <p className="text-xs text-chalk/50 mt-3 text-center">
-            Free to describe and check — no account needed.
-          </p>
-        </div>
 
-        {/* How it works */}
-        <section id="how-it-works" aria-labelledby="how-heading" className="scroll-mt-4">
-          <h2 id="how-heading" className="font-mono text-[11px] font-bold tracking-wider uppercase text-buy mb-3">
+          <div className="mx-auto mt-14 md:mt-20 max-w-5xl">
+            <ProductPreview />
+          </div>
+        </section>
+      </div>
+
+      <main className="mx-auto w-full max-w-6xl px-5 md:px-8 flex flex-col gap-20 md:gap-28 py-16 md:py-24">
+        {/* How it works: a four-step sequence */}
+        <section id="how-it-works" aria-labelledby="how-heading" className="scroll-mt-6">
+          <h2 id="how-heading" className="font-display text-4xl md:text-5xl text-chalk mb-3">
             How it works
           </h2>
-          <ol className="flex flex-col gap-2.5 mb-3">
-            {HOW_IT_WORKS_STEPS.map((s, i) => (
-              <li key={s.title} className="rounded-lg border border-outline bg-slate px-4 py-3 flex gap-3">
-                <span className="material-symbols-outlined text-signal text-xl shrink-0" aria-hidden="true">
+          <p className="text-chalk/65 max-w-[38rem] mb-10">
+            Four steps, all in your browser. You only need MetaTrader 5 at the end.
+          </p>
+          <ol className="grid gap-8 md:grid-cols-4 md:gap-6">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="relative md:pt-6 md:border-t border-outline">
+                <span className="material-symbols-outlined text-accent text-2xl mb-3 block" aria-hidden="true">
                   {s.icon}
                 </span>
-                <div>
-                  <p className="text-sm font-semibold text-chalk mb-0.5">
-                    {i + 1}. {s.title}
-                  </p>
-                  <p className="text-xs text-chalk/70 leading-relaxed">{s.body}</p>
-                </div>
+                <p className="font-semibold text-chalk mb-1.5">
+                  <span className="text-chalk/40 mr-1.5">{i + 1}.</span>
+                  {s.title}
+                </p>
+                <p className="text-sm text-chalk/65 leading-relaxed">{s.body}</p>
               </li>
             ))}
           </ol>
-          <Link href="/how-it-works" className="text-sm text-secondary hover:underline">
-            See the full walkthrough →
+          <Link href="/how-it-works" className="inline-block mt-8 text-sm text-chalk/80 underline underline-offset-4 decoration-outline-variant hover:decoration-chalk">
+            See the full walkthrough
           </Link>
         </section>
 
-        {/* Example: the real readback for a real description */}
-        <section aria-labelledby="example-heading">
-          <h2 id="example-heading" className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            Example
+        {/* The usual way vs. StratoBot */}
+        <section aria-labelledby="compare-heading" className="grid md:grid-cols-2 gap-6">
+          <h2 id="compare-heading" className="sr-only">
+            Hiring a programmer compared with StratoBot
           </h2>
-          <div className="rounded-lg bg-ink border border-outline px-4 py-3.5 mb-2">
-            <p className="font-mono text-[13px] text-chalk/75 leading-relaxed">
-              <span className="text-signal">&gt;</span> &ldquo;{EXAMPLE}&rdquo;
-            </p>
-          </div>
-          <p className="text-xs text-chalk/50 mb-2">This is what the app shows back before you build:</p>
-          <div className="rounded-lg border border-outline bg-slate px-4 py-4 mb-3">
-            <RulesReadback rules={EXAMPLE_RULES} />
-          </div>
-          <Link href="/demo" className="text-sm text-secondary hover:underline">
-            See the full demo walkthrough →
-          </Link>
-        </section>
-
-        {/* The problem it replaces */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            The usual way
-          </p>
-          <p className="text-sm text-chalk/85 leading-relaxed mb-3">
-            Turning a strategy into an automated system usually means hiring an MQL4/MQL5
-            programmer:
-          </p>
-          <div className="rounded-lg border border-outline bg-slate px-4 py-3.5 mb-3">
-            <ol className="flex flex-col gap-1.5 text-sm text-chalk/60">
-              {OLD_WAY_STEPS.map((step, i) => (
-                <li key={step} className="flex items-start gap-2">
-                  <span className="font-mono text-xs text-chalk/40 mt-0.5 shrink-0">{i + 1}.</span>
-                  <span className="line-through decoration-chalk/30">{step}</span>
+          <div className="rounded-2xl border border-outline px-6 py-7">
+            <p className="font-display text-2xl text-chalk/50 mb-5">Hiring a programmer</p>
+            <ul className="flex flex-col gap-3 text-chalk/55">
+              {OLD_WAY.map((s) => (
+                <li key={s} className="line-through decoration-chalk/25">
+                  {s}
                 </li>
               ))}
-            </ol>
+            </ul>
           </div>
-          <Link href="/compare/ea-programmer-alternative" className="text-sm text-secondary hover:underline">
-            See the full cost &amp; time comparison →
-          </Link>
-        </div>
-
-        {/* Features */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            Features
-          </p>
-          <div className="flex flex-col gap-3 mb-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-lg border border-outline bg-slate px-4 py-3.5 flex gap-3">
-                <span className="material-symbols-outlined text-signal text-xl shrink-0">
-                  {f.icon}
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-chalk mb-1">{f.title}</p>
-                  <p className="text-xs text-chalk/70 leading-relaxed">{f.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <Link href="/features" className="text-sm text-secondary hover:underline">
-            See all features →
-          </Link>
-        </div>
-
-        {/* Backtesting honesty note */}
-        <div className="p-3 rounded-lg border border-caution bg-caution-bg/20">
-          <p className="text-xs text-chalk/80 leading-relaxed">
-            Before you download, a free logic check runs your exact rules through the bot&apos;s
-            trade logic and explains every trade it takes — on a made-up price path, not real
-            market history. It&apos;s not a backtest and not a promise of profitability.{" "}
-            <Link href="/backtesting" className="text-secondary hover:underline">
-              Read the honest answer →
+          <div className="rounded-2xl bg-slate shadow-soft border border-outline px-6 py-7">
+            <p className="font-display text-2xl text-chalk mb-5">With StratoBot</p>
+            <ul className="flex flex-col gap-3 text-chalk/85">
+              {NEW_WAY.map((s) => (
+                <li key={s} className="flex items-start gap-2.5">
+                  <span className="material-symbols-outlined text-buy text-lg" aria-hidden="true">
+                    check
+                  </span>
+                  {s}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/compare/ea-programmer-alternative"
+              className="inline-block mt-6 text-sm text-chalk/80 underline underline-offset-4 decoration-outline-variant hover:decoration-chalk"
+            >
+              See the full cost and time comparison
             </Link>
-          </p>
-        </div>
+          </div>
+        </section>
+
+        {/* What you get: code you can read */}
+        <section aria-labelledby="code-heading" className="grid md:grid-cols-[1fr_1.1fr] gap-10 items-center">
+          <div className="min-w-0">
+            <h2 id="code-heading" className="font-display text-4xl md:text-5xl text-chalk mb-4">
+              Code you can read, not a black box
+            </h2>
+            <p className="text-chalk/70 leading-relaxed mb-6 max-w-[34rem]">
+              Your rules are compiled by a deterministic compiler, not written freeform by AI, and
+              the compiler is checked against MetaTrader 5&apos;s own Strategy Tester. Every
+              setting you described becomes an input you can change in MetaTrader.
+            </p>
+            <ul className="flex flex-col gap-2.5 text-sm text-chalk/80">
+              <li className="flex gap-2.5"><span className="material-symbols-outlined text-accent text-lg" aria-hidden="true">code</span>An ordinary .mq5 source file, yours to keep and edit</li>
+              <li className="flex gap-2.5"><span className="material-symbols-outlined text-accent text-lg" aria-hidden="true">tune</span>Stops, targets and sizes exposed as inputs</li>
+              <li className="flex gap-2.5"><span className="material-symbols-outlined text-accent text-lg" aria-hidden="true">lock_open</span>Nothing locked to our platform</li>
+            </ul>
+          </div>
+          <figure className="min-w-0 rounded-2xl bg-[#2a2824] text-[#ece7dc] shadow-lift overflow-hidden">
+            <figcaption className="px-5 py-3 border-b border-white/10 text-xs text-[#ece7dc]/60 font-mono">
+              9-21-ema-cross.mq5 (inputs, real excerpt)
+            </figcaption>
+            <pre className="px-5 py-5 text-[12.5px] leading-relaxed font-mono overflow-x-auto">
+              {MQL5_EXCERPT.join("\n")}
+            </pre>
+          </figure>
+        </section>
 
         {/* Pricing */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">
-            Pricing
+        <section aria-labelledby="pricing-heading">
+          <h2 id="pricing-heading" className="font-display text-4xl md:text-5xl text-chalk mb-3">
+            Simple pricing
+          </h2>
+          <p className="text-chalk/65 mb-8">
+            We&apos;re in beta: payments aren&apos;t live yet, so Pro is free for now.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border border-outline bg-slate px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-chalk/50 mb-2">
-                Free
-              </p>
-              <p className="font-display font-bold text-2xl text-chalk mono-num mb-2">KES 0</p>
-              <p className="text-xs text-chalk/70 leading-relaxed">
-                Describe your strategy, run {FREE_SIMS} logic checks. No account needed.
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
+            <div className="rounded-2xl border border-outline px-6 py-7">
+              <p className="text-sm font-semibold text-chalk/60 mb-2">Free</p>
+              <p className="font-display text-4xl text-chalk mb-3">KES 0</p>
+              <p className="text-sm text-chalk/70 leading-relaxed">
+                Describe your strategy, review the rules and run {FREE_SIMS} logic checks. No
+                account needed.
               </p>
             </div>
-            <div className="rounded-lg border border-signal/40 bg-slate px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-signal mb-2">Pro</p>
-              <p className="font-display font-bold text-2xl text-chalk mono-num mb-2">
-                KES {PRICE_KES.toLocaleString("en-KE")}
+            <div className="rounded-2xl bg-slate shadow-soft border border-outline px-6 py-7">
+              <p className="text-sm font-semibold text-accent mb-2">Pro</p>
+              <p className="font-display text-4xl text-chalk mb-3">
+                <span>KES {PRICE_KES.toLocaleString("en-KE")}</span>
+                <span className="font-body text-sm text-buy ml-2 align-middle">free during beta</span>
               </p>
-              <p className="text-xs text-chalk/70 leading-relaxed">
+              <p className="text-sm text-chalk/70 leading-relaxed">
                 Unlimited strategies and .mq5 downloads for {PRO_DAYS} days.
               </p>
             </div>
           </div>
-          <p className="text-sm text-chalk/70 mt-3">
-            <Link href="/pricing" className="text-secondary hover:underline">
-              See full pricing →
-            </Link>
-          </p>
-          <p className="text-xs text-chalk/50 mt-2">
-            We&apos;re in beta: payments aren&apos;t live yet, so Pro is free for now.
-          </p>
-        </div>
-
-        {/* FAQ teaser */}
-        <div>
-          <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-2">
-            Common questions
-          </p>
-          <p className="text-sm text-chalk/70 leading-relaxed mb-1">
-            Do I need to know MQL5? Will this guarantee my strategy makes money? Do I need a VPS?
-          </p>
-          <Link href="/faq" className="text-sm text-secondary hover:underline">
-            Read the full FAQ →
+          <Link href="/pricing" className="inline-block mt-6 text-sm text-chalk/80 underline underline-offset-4 decoration-outline-variant hover:decoration-chalk">
+            See full pricing
           </Link>
+        </section>
+
+        <div className="max-w-2xl mx-auto w-full">
+          <CtaBanner />
         </div>
 
-        <CtaBanner />
-
-        <p className="text-xs text-chalk/50 leading-relaxed">
+        <p className="text-xs text-chalk/55 leading-relaxed max-w-3xl">
           <span className="font-semibold text-chalk/70">Risk warning:</span> trading forex and CFDs
           on margin carries a high risk of losing money, including more than you deposit with some
           brokers. StratoBot builds the EA you describe; it doesn&apos;t give trading advice and
-          can&apos;t make a strategy profitable. Test every EA on a demo account first.
+          can&apos;t make a strategy profitable. Test every EA on a demo account first.{" "}
+          <Link href="/faq" className="underline underline-offset-2">
+            Read the FAQ
+          </Link>
         </p>
 
         <Footer />

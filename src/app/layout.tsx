@@ -1,20 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Inter, IBM_Plex_Mono } from "next/font/google";
+import { DM_Serif_Display, Geist, IBM_Plex_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { StrategyProvider } from "@/lib/store";
+import { PageShell } from "@/components/PageShell";
 import "./globals.css";
 
 // Font optimization for mobile performance - subset and display swap
-const archivo = Archivo({
-  variable: "--font-archivo",
+// Headings: a high-contrast display serif (one weight, see .font-display in globals.css).
+const dmSerif = DM_Serif_Display({
+  variable: "--font-dm-serif",
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: "400",
   display: "swap",
   preload: true,
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const geist = Geist({
+  variable: "--font-geist",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   display: "swap",
@@ -34,7 +36,7 @@ export const metadata: Metadata = {
   title: "StratoBot AI",
   description: "Turn your trading strategy into an Expert Advisor without hiring a programmer.",
   manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "StratoBot" },
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "StratoBot" },
   // Mobile optimization
   formatDetection: {
     telephone: false,
@@ -43,12 +45,15 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-status-bar-style": "default",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0d131f",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f3ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c1b18" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -60,7 +65,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${inter.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${dmSerif.variable} ${geist.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         {/* Preconnect to font domains for performance */}
@@ -94,9 +99,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col font-body">
         <StrategyProvider>
-          <div className="mx-auto w-full max-w-[420px] min-h-dvh flex flex-col bg-ink relative">
-            {children}
-          </div>
+          <PageShell>{children}</PageShell>
         </StrategyProvider>
         <Analytics />
       </body>

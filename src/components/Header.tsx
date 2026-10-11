@@ -58,7 +58,7 @@ export function Header({
             <span className="text-xs text-chalk/50 hidden sm:block">
               {authState.user.name}
             </span>
-            <div className="w-8 h-8 rounded-full bg-signal flex items-center justify-center text-white text-xs font-medium">
+            <div className="w-8 h-8 rounded-full bg-signal flex items-center justify-center text-on-signal text-xs font-medium">
               {authState.user.name.charAt(0).toUpperCase()}
             </div>
           </div>

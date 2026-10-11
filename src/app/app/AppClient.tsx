@@ -171,7 +171,7 @@ export function AppClient() {
               onClick={toggleListen}
               aria-label="Voice input"
               className={`material-symbols-outlined absolute bottom-3 right-3 rounded-full p-2 ${
-                listening ? "bg-signal text-white" : "bg-slate-high text-chalk/70"
+                listening ? "bg-signal text-on-signal" : "bg-slate-high text-chalk/70"
               }`}
             >
               mic

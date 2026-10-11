@@ -1,37 +1,63 @@
 @import "tailwindcss";
 
+/* StratoBot palette: soft warm light (default) and soft warm dark.
+   Low-contrast neutrals that are easy on the eyes, near-black pill actions,
+   one warm accent, and muted buy/sell colours for trade data. No pure black
+   or white anywhere. Names are kept from the old dark theme so every page
+   re-themes through these variables: ink = page, slate = surface,
+   chalk = text, signal = primary action. */
 :root {
-  /* StratoBot AI palette — Updated to match Stitch stratobot_logic design system */
-  --ink: #0d131f;
-  --slate: #1a202c;
-  --slate-high: #242a37;
-  --chalk: #EEF1F6;
-  --signal: #3D5AFE;
-  --signal-dim: #2947e0;
-  --caution: #F0A020;
-  --caution-bg: #3a2c10;
-  --buy: #0E9F6E;
-  --sell: #E02424;
-  --outline: #444656;
-  --outline-variant: #3b4b37;
-  /* Focus rings / hover accents (BlockPickerSheet, ParameterSheet, inputs) —
-     aliased to signal so interactive states match the primary action color
-     instead of introducing an unreviewed extra hue. */
-  --secondary: var(--signal);
+  --ink: #f6f3ee;
+  --slate: #fffdf9;
+  --slate-high: #efebe3;
+  --chalk: #26241f;
+  --signal: #26241f;
+  --signal-dim: #3b3832;
+  --on-signal: #fbf9f5;
+  --accent: #c2673b;
+  --caution: #9c5f17;
+  --caution-bg: #fbefd9;
+  --buy: #3f7d5a;
+  --sell: #b4503f;
+  --outline: #e4dfd5;
+  --outline-variant: #d8d2c5;
+  --secondary: var(--accent);
+  --shadow: 38 36 31;
 
   --background: var(--ink);
   --foreground: var(--chalk);
   --surface: var(--slate);
   --surface-high: var(--slate-high);
+  color-scheme: light;
 }
 
-[data-theme="light"] {
-  --background: #f5f6fa;
-  --foreground: #0d131f;
-  --surface: #ffffff;
-  --surface-high: #eef1f6;
-  --outline: #dbe0ea;
-  --chalk: #0d131f;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #1c1b18;
+    --slate: #24231f;
+    --slate-high: #2e2c27;
+    --chalk: #ebe6dc;
+    --signal: #ebe6dc;
+    --signal-dim: #d5cfc3;
+    --on-signal: #1c1b18;
+    --accent: #e08a5c;
+    --caution: #e2ac52;
+    --caution-bg: #3a2f19;
+    --buy: #79bf95;
+    --sell: #e38676;
+    --outline: #3a3832;
+    --outline-variant: #47443d;
+    --shadow: 0 0 0;
+    color-scheme: dark;
+  }
+}
+
+/* One soft radius scale for the whole site: cards and buttons share it. */
+@theme {
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
 }
 
 @theme inline {
@@ -48,11 +74,13 @@
   --color-outline: var(--outline);
   --color-outline-variant: var(--outline-variant);
   --color-secondary: var(--secondary);
+  --color-on-signal: var(--on-signal);
+  --color-accent: var(--accent);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --font-display: var(--font-archivo);
-  --font-body: var(--font-inter);
+  --font-display: var(--font-dm-serif);
+  --font-body: var(--font-geist);
   --font-data: var(--font-plex-mono);
 }
 
@@ -60,12 +88,18 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
-  color-scheme: dark;
+/* The display serif has one weight; never let the browser fake a bold. */
+.font-display {
+  font-synthesis: none;
+  letter-spacing: -0.015em;
 }
-[data-theme="light"] html,
-html[data-theme="light"] {
-  color-scheme: light;
+
+/* Soft, tinted elevation instead of grey drop shadows. */
+.shadow-soft {
+  box-shadow: 0 1px 2px rgb(var(--shadow) / 0.04), 0 12px 32px -12px rgb(var(--shadow) / 0.12);
+}
+.shadow-lift {
+  box-shadow: 0 2px 6px rgb(var(--shadow) / 0.05), 0 32px 80px -24px rgb(var(--shadow) / 0.28);
 }
 
 body {

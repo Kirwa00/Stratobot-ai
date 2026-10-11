@@ -144,7 +144,7 @@ export default function LibraryPage() {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === category
-                    ? "bg-signal text-white"
+                    ? "bg-signal text-on-signal"
                     : "bg-slate text-chalk/70 hover:bg-slate-high"
                 }`}
               >
@@ -164,7 +164,7 @@ export default function LibraryPage() {
                 onClick={() => setSelectedDifficulty(level)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                   selectedDifficulty === level
-                    ? "bg-signal text-white"
+                    ? "bg-signal text-on-signal"
                     : "bg-slate text-chalk/70 hover:bg-slate-high"
                 }`}
               >
