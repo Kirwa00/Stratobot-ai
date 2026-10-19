@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
+import { YouTubeExplainer } from "@/components/YouTubeExplainer";
 import { PRICE_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
@@ -89,6 +90,8 @@ export default function HowToCreateMt5EaPage() {
           · <Link href="/learn/how-to-add-expert-advisor-mt5" className="text-secondary hover:underline">Installing it in MT5</Link>{" "}
           · <Link href="/learn/how-to-backtest-an-ea-in-mt5" className="text-secondary hover:underline">Backtesting it</Link>
         </p>
+
+        <YouTubeExplainer heading="Watch: create an MT5 EA in 1 minute" />
 
         <CtaBanner
           title="Have a strategy ready?"

@@ -12,7 +12,8 @@ import { parsePrompt } from "@/lib/parser";
 import { blocksToRules } from "@/lib/rules/from-blocks";
 import { simulateRules } from "@/lib/rules/synthetic";
 import { compileRules } from "@/lib/rules/compile-mql5";
-import { buildMetadata } from "@/lib/seo";
+import { buildMetadata, SITE_URL } from "@/lib/seo";
+import { EXPLAINER } from "@/lib/video";
 import heroImage from "../../public/images/hero-trader-desk.jpg";
 
 export const metadata = buildMetadata({
@@ -124,6 +125,19 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col flex-1">
       <TrackView event="landing_page_view" />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "StratoBot",
+            alternateName: "StratoBot AI",
+            url: SITE_URL,
+            sameAs: [EXPLAINER.youtubeChannelUrl],
+          }),
+        }}
+      />
 
       {/* Hero, over a soft trader's-desk photograph */}
       <div className="relative isolate overflow-hidden">

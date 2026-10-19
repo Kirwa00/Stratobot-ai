@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react";
 import { EXPLAINER, clock, explainerJsonLd } from "@/lib/video";
 
-// The 67-second StratoBot explainer (silent; all information is on screen).
-// preload="none" + a poster keeps the 6 MB file from loading until someone
+// The 67-second narrated StratoBot explainer (also on YouTube).
+// preload="none" + a poster keeps the 7.6 MB file from loading until someone
 // presses play. On the page Google indexes it on (withSchema), it carries
 // VideoObject structured data and clickable chapters; ?t=31 seeks to 0:31,
 // which is what the structured data's key moments link to.
@@ -58,7 +58,16 @@ export function ExplainerVideo({
       </video>
       {caption && (
         <figcaption className="mt-3 text-xs text-chalk/60">
-          {chapters ? EXPLAINER.title : "A 1-minute walkthrough (no sound): describe, review, check, download."}
+          {chapters ? EXPLAINER.title : "A 1-minute narrated walkthrough: describe, review, check, download."}{" "}
+          <a
+            href={EXPLAINER.youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-chalk"
+          >
+            Watch on YouTube
+            <span className="material-symbols-outlined text-sm" aria-hidden="true">open_in_new</span>
+          </a>
         </figcaption>
       )}
       {chapters && (

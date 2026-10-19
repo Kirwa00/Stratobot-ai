@@ -8,6 +8,9 @@ export const EXPLAINER = {
   /** The page where the video is the main content (the one Google should index it on). */
   pagePath: "/how-it-works",
   src: "/videos/stratobot-explainer.mp4",
+  /** The same video on the StratoBot YouTube channel. */
+  youtubeUrl: "https://www.youtube.com/watch?v=ORr7eERahvc",
+  youtubeChannelUrl: "https://www.youtube.com/@emmanuelkirwa6621",
   poster: "/videos/stratobot-explainer-poster.jpg",
   width: 1920,
   height: 1080,
@@ -15,7 +18,7 @@ export const EXPLAINER = {
   uploadDate: "2026-10-19T08:00:00+03:00",
   title: "How to Turn a Trading Strategy Into an MT5 Expert Advisor (No Coding)",
   description:
-    "A 1-minute walkthrough of StratoBot: describe your forex strategy in plain language, review the rules it will trade, run a free logic check that explains every trade, and download a MetaTrader 5 (.mq5) Expert Advisor. KES 2,500 per month, free during the beta.",
+    "A 1-minute narrated walkthrough of StratoBot: describe your forex strategy in plain language, review the rules it will trade, run a free logic check that explains every trade, and download a MetaTrader 5 (.mq5) Expert Advisor. KES 2,500 per month, free during the beta.",
   keywords: [
     "MT5 Expert Advisor",
     "create MT5 EA without coding",
@@ -58,7 +61,14 @@ export function explainerJsonLd() {
     inLanguage: "en",
     isFamilyFriendly: true,
     keywords: EXPLAINER.keywords.join(", "),
-    publisher: { "@type": "Organization", name: "StratoBot", url: SITE_URL },
+    publisher: {
+      "@type": "Organization",
+      name: "StratoBot",
+      url: SITE_URL,
+      sameAs: [EXPLAINER.youtubeChannelUrl],
+    },
+    // The same video published on YouTube.
+    sameAs: [EXPLAINER.youtubeUrl],
     // Key moments: each clip links to the page with ?t=, which the player seeks to.
     hasPart: chapters.map((c, i) => ({
       "@type": "Clip",

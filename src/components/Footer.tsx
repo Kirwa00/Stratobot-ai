@@ -35,6 +35,7 @@ const GROUPS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/blog", label: "Blog" },
       { href: "/resources", label: "Resources" },
       { href: "/feedback", label: "Feedback" },
+      { href: "https://www.youtube.com/@emmanuelkirwa6621", label: "YouTube" },
     ],
   },
 ];
@@ -51,9 +52,15 @@ export function Footer() {
             <ul className="flex flex-col gap-1.5">
               {g.links.map((l) => (
                 <li key={l.href}>
-                  <Link href={l.href} className="text-xs text-chalk/70 hover:text-secondary">
-                    {l.label}
-                  </Link>
+                  {l.href.startsWith("http") ? (
+                    <a href={l.href} target="_blank" rel="noopener noreferrer" className="text-xs text-chalk/70 hover:text-secondary">
+                      {l.label}
+                    </a>
+                  ) : (
+                    <Link href={l.href} className="text-xs text-chalk/70 hover:text-secondary">
+                      {l.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { YouTubeExplainer } from "@/components/YouTubeExplainer";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -64,6 +65,8 @@ export default function AiEaGeneratorPage() {
             See the MQL5 generator page
           </Link>
         </p>
+
+        <YouTubeExplainer heading="Watch the EA generator in 1 minute" />
 
         <CtaBanner />
       </main>

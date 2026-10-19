@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { YouTubeExplainer } from "@/components/YouTubeExplainer";
 import { PRICE_KES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
@@ -155,6 +156,8 @@ export default function ConvertStrategyToEaPage() {
           </Link>{" "}
           · <Link href="/faq" className="text-secondary hover:underline">Read the FAQ</Link>
         </p>
+
+        <YouTubeExplainer heading="Watch: strategy to EA in 1 minute" />
 
         <CtaBanner />
       </main>
