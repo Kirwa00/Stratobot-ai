@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
-import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { FREE_SIMS, PRICE_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -24,7 +24,7 @@ const FAQ_SCHEMA = [
   },
   {
     q: "What's the difference between the free check and paying?",
-    a: `Free gets you ${FREE_SIMS} logic-check simulations and the full block editor, no account needed. Paying (KES ${PRICE_KES.toLocaleString("en-KE")} for ${PRO_DAYS} days) unlocks unlimited simulations and lets you download the actual .mq5 file to compile in MetaTrader.`,
+    a: `Free gets you ${FREE_SIMS} logic-check simulations and the full block editor, no account needed. Pro (${PRICE_PER_MONTH}) unlocks unlimited simulations and lets you download the actual .mq5 file to compile in MetaTrader.`,
   },
   {
     q: "What do I do with the file once I download it?",
@@ -72,7 +72,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
     a: (
       <>
         Free gets you {FREE_SIMS} logic-check simulations and the full block editor, no account
-        needed. Paying (KES {PRICE_KES.toLocaleString("en-KE")} for {PRO_DAYS} days) unlocks
+        needed. Pro ({PRICE_PER_MONTH}) unlocks
         unlimited simulations and lets you download the actual .mq5 file to compile in MetaTrader.
         See <Link href="/pricing" className="text-secondary hover:underline">Pricing</Link>.
       </>

@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { RulesReadback } from "@/components/RulesReadback";
 import { useStrategyStore } from "@/lib/store";
-import { BETA_CODE, PRICE_KES, PRO_DAYS } from "@/lib/constants";
+import { BETA_CODE, PRICE_KES, PRICE_PER_MONTH, PRO_DAYS } from "@/lib/constants";
 import { trackEvent } from "@/lib/analytics";
 import { strategyRules } from "@/lib/simulate";
 
@@ -69,18 +69,19 @@ export default function UnlockPage() {
         <div className="rounded-lg border border-outline bg-slate px-4 py-4">
           <div className="flex items-baseline justify-between mb-1">
             <p className="font-display font-bold text-lg text-chalk">Pro</p>
-            <p className="font-display font-bold text-lg text-chalk mono-num">
+            <p className="font-display font-bold text-lg text-chalk">
               KES {PRICE_KES.toLocaleString("en-KE")}
+              <span className="font-body font-normal text-sm text-chalk/60"> / month</span>
             </p>
           </div>
           <p className="text-xs text-chalk/50 mb-3">
-            Unlocks unlimited access for {PRO_DAYS} days. Not an auto-renewing subscription.
+            Each month of Pro is a {PRO_DAYS}-day pass. It doesn&apos;t renew automatically.
           </p>
           <ul className="flex flex-col gap-2 text-sm text-chalk/85">
             {[
               "Your strategy as an MQL5 (.mq5) file, ready to compile in MetaTrader",
-              `Unlimited logic checks for ${PRO_DAYS} days`,
-              `Unlimited strategies and downloads for ${PRO_DAYS} days`,
+              "Unlimited logic checks",
+              "Unlimited strategies and downloads",
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-signal text-base mt-0.5">check</span>
@@ -103,8 +104,7 @@ export default function UnlockPage() {
           </p>
           <p className="text-sm text-chalk/85 leading-relaxed">
             Payments aren&apos;t live yet, so Pro is free while we&apos;re in beta. No card or
-            M-Pesa details needed. When payments open, Pro will cost KES{" "}
-            {PRICE_KES.toLocaleString("en-KE")} for {PRO_DAYS} days.
+            M-Pesa details needed. When payments open, Pro will cost {PRICE_PER_MONTH}.
           </p>
         </div>
 

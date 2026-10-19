@@ -15,12 +15,19 @@ export function buildMetadata({
   title,
   description,
   path,
+  image,
+  video,
 }: {
   title: string;
   description: string;
   path: string;
+  /** Absolute or site-relative preview image (e.g. a video poster). */
+  image?: { url: string; width: number; height: number; alt: string };
+  /** A video embedded on the page, for link previews. */
+  video?: { url: string; width: number; height: number };
 }): Metadata {
   const url = `${SITE_URL}${path}`;
+  const abs = (u: string) => (u.startsWith("http") ? u : `${SITE_URL}${u}`);
   return {
     title,
     description,
@@ -31,11 +38,14 @@ export function buildMetadata({
       url,
       siteName: SITE_NAME,
       type: "website",
+      ...(image ? { images: [{ ...image, url: abs(image.url) }] } : {}),
+      ...(video ? { videos: [{ ...video, url: abs(video.url), type: "video/mp4" }] } : {}),
     },
     twitter: {
-      card: "summary",
+      card: image ? "summary_large_image" : "summary",
       title,
       description,
+      ...(image ? { images: [abs(image.url)] } : {}),
     },
   };
 }

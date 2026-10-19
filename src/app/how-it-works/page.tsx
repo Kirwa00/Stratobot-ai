@@ -1,11 +1,17 @@
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
+import { ExplainerVideo } from "@/components/ExplainerVideo";
+import { PRICE_PER_MONTH } from "@/lib/constants";
+import { EXPLAINER } from "@/lib/video";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "How It Works — StratoBot AI",
-  description: "How StratoBot turns a plain-language trading strategy into a working MT5 Expert Advisor.",
+  title: "How It Works (1-Minute Video): Trading Strategy to MT5 EA — StratoBot AI",
+  description:
+    "Watch how StratoBot turns a plain-language trading strategy into a MetaTrader 5 Expert Advisor: describe it, review the rules, run a free logic check, download the .mq5. No coding.",
   path: "/how-it-works",
+  image: { url: EXPLAINER.poster, width: 1280, height: 720, alt: EXPLAINER.title },
+  video: { url: EXPLAINER.src, width: EXPLAINER.width, height: EXPLAINER.height },
 });
 
 const OLD_WAY = [
@@ -38,7 +44,7 @@ const STEPS = [
     n: "03",
     icon: "lock_open",
     title: "Unlock",
-    body: "Happy with the read-back? Unlock unlimited simulations and downloads for 30 days.",
+    body: `Happy with the read-back? Pro (${PRICE_PER_MONTH}, free during the beta) unlocks unlimited checks and downloads.`,
   },
   {
     n: "04",
@@ -61,6 +67,8 @@ export default function HowItWorksPage() {
             No MQL4/MQL5 programming required — and no hiring a programmer.
           </p>
         </div>
+
+        <ExplainerVideo withSchema chapters />
 
         <div>
           <p className="font-mono text-[11px] font-bold tracking-wider uppercase text-chalk/50 mb-3">

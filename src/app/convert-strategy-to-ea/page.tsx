@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
-import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { PRICE_KES } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -139,8 +139,8 @@ export default function ConvertStrategyToEaPage() {
           </p>
           <p className="text-sm text-chalk/85 leading-relaxed">
             Free to describe your strategy and run logic checks. KES{" "}
-            {PRICE_KES.toLocaleString("en-KE")} unlocks unlimited strategies and downloads for{" "}
-            {PRO_DAYS} days.{" "}
+            {PRICE_KES.toLocaleString("en-KE")} per month unlocks unlimited strategies and
+            downloads.{" "}
             <Link href="/pricing" className="text-secondary hover:underline">
               See full pricing
             </Link>

@@ -2,8 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { CtaBanner } from "@/components/CtaBanner";
 import { Footer } from "@/components/Footer";
-import { EXAMPLE_STRATEGIES, FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { EXAMPLE_STRATEGIES, FREE_SIMS, PRICE_KES } from "@/lib/constants";
 import { TrackView } from "@/components/TrackView";
+import { ExplainerVideo } from "@/components/ExplainerVideo";
 import { TrackedLink } from "@/components/TrackedLink";
 import { RulesReadback } from "@/components/RulesReadback";
 import { SimulationChart } from "@/components/SimulationChart";
@@ -198,9 +199,12 @@ export default function LandingPage() {
           <h2 id="how-heading" className="font-display text-4xl md:text-5xl text-chalk mb-3">
             How it works
           </h2>
-          <p className="text-chalk/65 max-w-[38rem] mb-10">
+          <p className="text-chalk/65 max-w-[38rem] mb-8">
             Four steps, all in your browser. You only need MetaTrader 5 at the end.
           </p>
+          <div className="max-w-4xl mb-14">
+            <ExplainerVideo />
+          </div>
           <ol className="grid gap-8 md:grid-cols-4 md:gap-6">
             {STEPS.map((s, i) => (
               <li key={s.title} className="relative md:pt-6 md:border-t border-outline">
@@ -304,10 +308,11 @@ export default function LandingPage() {
               <p className="text-sm font-semibold text-accent mb-2">Pro</p>
               <p className="font-display text-4xl text-chalk mb-3">
                 <span>KES {PRICE_KES.toLocaleString("en-KE")}</span>
+                <span className="font-body text-base text-chalk/60"> / month</span>
                 <span className="font-body text-sm text-buy ml-2 align-middle">free during beta</span>
               </p>
               <p className="text-sm text-chalk/70 leading-relaxed">
-                Unlimited strategies and .mq5 downloads for {PRO_DAYS} days.
+                Unlimited strategies, logic checks and .mq5 downloads, every month.
               </p>
             </div>
           </div>

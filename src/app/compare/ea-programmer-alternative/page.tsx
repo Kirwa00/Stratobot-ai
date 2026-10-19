@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
-import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { PRICE_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -15,7 +15,7 @@ const ROWS = [
   {
     label: "Typical cost",
     programmer: "~$150–$500+ USD for a real strategy with entries/exits/risk rules (simple mods run $30–$200); rates vary widely by platform and developer.",
-    stratobot: `KES ${PRICE_KES.toLocaleString("en-KE")} for ${PRO_DAYS} days of unlimited strategies and downloads.`,
+    stratobot: `${PRICE_PER_MONTH} for unlimited strategies and downloads.`,
   },
   {
     label: "Typical timeline",

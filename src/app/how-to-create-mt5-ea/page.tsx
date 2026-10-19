@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
-import { PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { PRICE_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -34,7 +34,7 @@ const STEPS = [
   },
   {
     title: "Unlock and download",
-    body: `KES ${PRICE_KES.toLocaleString("en-KE")} unlocks unlimited strategies and downloads for ${PRO_DAYS} days. Download the real .mq5 file.`,
+    body: `Pro (${PRICE_PER_MONTH}) unlocks unlimited strategies and downloads. Download the real .mq5 file.`,
   },
   {
     title: "Compile and run it",

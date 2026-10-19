@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { TrackView } from "@/components/TrackView";
-import { FREE_SIMS, PRO_DAYS, PRICE_KES } from "@/lib/constants";
+import { FREE_SIMS, PRO_DAYS, PRICE_KES, PRICE_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
   title: "Pricing — StratoBot AI",
-  description: `Describe and check your strategy free. Pro: ${PRO_DAYS} days of unlimited strategies and .mq5 downloads for KES ${PRICE_KES.toLocaleString("en-KE")} — free while StratoBot is in beta.`,
+  description: `Describe and check your strategy free. Pro: unlimited strategies and .mq5 downloads for ${PRICE_PER_MONTH}, free while StratoBot is in beta.`,
   path: "/pricing",
 });
 
@@ -102,17 +102,18 @@ export default function PricingPage() {
               <span className="font-display font-bold text-lg text-chalk mono-num">
                 KES {PRICE_KES.toLocaleString("en-KE")}
               </span>
+              <span className="text-sm text-chalk/60"> / month</span>
               <span className="block text-xs text-buy">free during beta</span>
             </p>
           </div>
           <p className="text-xs text-chalk/50 mb-3">
-            A {PRO_DAYS}-day pass. Not an auto-renewing subscription.
+            Each month of Pro is a {PRO_DAYS}-day pass. It doesn&apos;t renew automatically.
           </p>
           <ul className="flex flex-col gap-2 text-sm text-chalk/85">
             {[
               "Your strategy as an MQL5 (.mq5) source file, ready to compile in MetaTrader 5",
-              `Unlimited strategies and downloads for ${PRO_DAYS} days`,
-              `Unlimited logic checks for ${PRO_DAYS} days`,
+              "Unlimited strategies and downloads",
+              "Unlimited logic checks",
             ].map((line) => (
               <li key={line} className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-signal text-base mt-0.5" aria-hidden="true">

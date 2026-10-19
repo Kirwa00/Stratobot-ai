@@ -3,7 +3,8 @@ import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { buildMetadata } from "@/lib/seo";
 import { RulesReadback } from "@/components/RulesReadback";
-import { EXAMPLE_STRATEGIES, PRO_DAYS } from "@/lib/constants";
+import { ExplainerVideo } from "@/components/ExplainerVideo";
+import { EXAMPLE_STRATEGIES, PRICE_PER_MONTH } from "@/lib/constants";
 import { parsePrompt } from "@/lib/parser";
 import { blocksToRules } from "@/lib/rules/from-blocks";
 
@@ -47,7 +48,7 @@ const STAGES = [
     n: "05",
     icon: "lock_open",
     title: "Unlock",
-    body: `Activate a ${PRO_DAYS}-day Pro pass (free while StratoBot is in beta).`,
+    body: `Activate Pro (${PRICE_PER_MONTH}, free while StratoBot is in beta).`,
   },
   {
     n: "06",
@@ -71,6 +72,8 @@ export default function DemoPage() {
             yourself.
           </p>
         </div>
+
+        <ExplainerVideo />
 
         <div className="flex flex-col gap-3">
           {STAGES.map((s) => (

@@ -6,6 +6,8 @@
 export const FREE_SIMS = 5;
 export const PRO_DAYS = 30;
 export const PRICE_KES = 2500;
+/** How the Pro price is stated everywhere on the site (and in the explainer video). */
+export const PRICE_PER_MONTH = `KES ${PRICE_KES.toLocaleString("en-KE")} per month`;
 /** Shared code handed out by email to beta testers so they can redeem a real
  *  30-day Pro pass (via markPaid()) without paying — not a per-user secret,
  *  same trust model as the rest of this no-backend app. */

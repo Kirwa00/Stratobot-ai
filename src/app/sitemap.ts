@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
+import { EXPLAINER } from "@/lib/video";
 
 // No lastModified/priority/changeFrequency: Google's own docs say it ignores
 // priority and changefreq, and a lastModified that just tracks build/request
@@ -65,5 +66,25 @@ const PATHS = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return PATHS.map((path) => ({ url: `${SITE_URL}${path}` }));
+  return PATHS.map((path) => ({
+    url: `${SITE_URL}${path}`,
+    // Video sitemap entry on the page where the explainer is the main content.
+    ...(path === EXPLAINER.pagePath
+      ? {
+          videos: [
+            {
+              title: EXPLAINER.title,
+              description: EXPLAINER.description,
+              thumbnail_loc: `${SITE_URL}${EXPLAINER.poster}`,
+              content_loc: `${SITE_URL}${EXPLAINER.src}`,
+              duration: EXPLAINER.durationSec,
+              publication_date: EXPLAINER.uploadDate,
+              family_friendly: "yes" as const,
+              requires_subscription: "no" as const,
+              tag: EXPLAINER.keywords[0],
+            },
+          ],
+        }
+      : {}),
+  }));
 }
