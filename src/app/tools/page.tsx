@@ -22,6 +22,12 @@ const CALCULATORS = [
     body: "Convert between lots, units, and pip value.",
   },
   {
+    href: "/tools/pip-calculator",
+    icon: "currency_exchange",
+    title: "Pip Calculator",
+    body: "What one pip is worth for your lot size, in USD or KES.",
+  },
+  {
     href: "/tools/forex-risk-calculator",
     icon: "shield",
     title: "Forex Risk Calculator",

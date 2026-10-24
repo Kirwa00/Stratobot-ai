@@ -18,12 +18,14 @@ const GROUPS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/compare/ea-programmer-alternative", label: "vs. hiring a programmer" },
       { href: "/compare/mql5-programmer", label: "vs. MQL5 programmer" },
       { href: "/compare/ea-generator", label: "vs. other EA generators" },
+      { href: "/compare/fxdreema-alternative", label: "fxDreema alternative" },
     ],
   },
   {
     title: "Tools",
     links: [
       { href: "/tools", label: "All calculators" },
+      { href: "/tools/pip-calculator", label: "Pip calculator" },
       { href: "/vps", label: "VPS comparison" },
       { href: "/prop-firms", label: "Prop firms" },
     ],
