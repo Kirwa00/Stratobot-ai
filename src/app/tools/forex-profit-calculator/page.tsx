@@ -33,6 +33,10 @@ export default function ForexProfitCalculatorPage() {
           <Link href="/tools/trading-cost-calculator" className="text-secondary hover:underline">
             Add in spread &amp; commission
           </Link>
+          {" "}·{" "}
+          <Link href="/tools/pip-calculator" className="text-secondary hover:underline">
+            Not sure of the pip value? Pip calculator
+          </Link>
         </p>
 
         <CtaBanner />

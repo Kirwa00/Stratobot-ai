@@ -63,6 +63,9 @@ export default function AiEaGeneratorPage() {
           Curious what the generated code actually looks like?{" "}
           <Link href="/mql5-ea-generator" className="text-secondary hover:underline">
             See the MQL5 generator page
+          </Link>{" "}
+          · <Link href="/compare/fxdreema-alternative" className="text-secondary hover:underline">
+            How it compares with fxDreema
           </Link>
         </p>
 

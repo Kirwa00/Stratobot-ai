@@ -88,7 +88,8 @@ export default function HowToCreateMt5EaPage() {
             Start with the block editor
           </Link>{" "}
           · <Link href="/learn/how-to-add-expert-advisor-mt5" className="text-secondary hover:underline">Installing it in MT5</Link>{" "}
-          · <Link href="/learn/how-to-backtest-an-ea-in-mt5" className="text-secondary hover:underline">Backtesting it</Link>
+          · <Link href="/learn/how-to-backtest-an-ea-in-mt5" className="text-secondary hover:underline">Backtesting it</Link>{" "}
+          · <Link href="/compare/fxdreema-alternative" className="text-secondary hover:underline">Compared with fxDreema</Link>
         </p>
 
         <YouTubeExplainer heading="Watch: create an MT5 EA in 1 minute" />

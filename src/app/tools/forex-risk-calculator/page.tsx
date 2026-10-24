@@ -33,6 +33,10 @@ export default function ForexRiskCalculatorPage() {
           <Link href="/tools/position-size-calculator" className="text-secondary hover:underline">
             Work backward from a target risk % instead
           </Link>
+          {" "}·{" "}
+          <Link href="/tools/pip-calculator" className="text-secondary hover:underline">
+            Pip calculator
+          </Link>
         </p>
 
         <CtaBanner />

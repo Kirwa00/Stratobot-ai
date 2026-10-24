@@ -33,6 +33,9 @@ export default function PositionSizeCalculatorPage() {
           </Link>{" "}
           · <Link href="/tools/forex-risk-calculator" className="text-secondary hover:underline">
             Already picked a lot size? Check your risk instead
+          </Link>{" "}
+          · <Link href="/tools/pip-calculator" className="text-secondary hover:underline">
+            Find your pair&apos;s pip value
           </Link>
         </p>
 

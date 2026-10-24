@@ -111,7 +111,11 @@ export default function FxDreemaAlternativePage() {
           <h2 className="font-display text-xl text-chalk">When StratoBot is the better fit</h2>
           <ul className="flex flex-col gap-2 text-sm text-chalk/80 leading-relaxed list-disc pl-5">
             <li>You can explain your strategy in a sentence or two, but wiring blocks feels slow.</li>
-            <li>You want to see your rules read back to you before you trust the EA.</li>
+            <li>
+              You want to see your rules{" "}
+              <Link href="/how-it-works" className="text-secondary hover:underline">read back to you</Link>{" "}
+              before you trust the EA.
+            </li>
             <li>You trade on MT5 and want a real .mq5 source file you can open in MetaEditor.</li>
             <li>Your strategy uses common pieces: moving averages, RSI, crossovers, fixed stops and targets.</li>
           </ul>
@@ -120,7 +124,10 @@ export default function FxDreemaAlternativePage() {
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-xl text-chalk">When fxDreema is the better fit</h2>
           <ul className="flex flex-col gap-2 text-sm text-chalk/80 leading-relaxed list-disc pl-5">
-            <li>You need an Expert Advisor for MetaTrader 4. StratoBot only builds for MT5.</li>
+            <li>
+              You need an Expert Advisor for MetaTrader 4. StratoBot only builds for MT5 (see{" "}
+              <Link href="/learn/mql4-vs-mql5" className="text-secondary hover:underline">MQL4 vs MQL5</Link>).
+            </li>
             <li>Your logic is unusual or complex and needs blocks StratoBot doesn&apos;t have yet.</li>
             <li>You like seeing and editing every step of the logic as a diagram.</li>
           </ul>
@@ -147,6 +154,10 @@ export default function FxDreemaAlternativePage() {
           ·{" "}
           <Link href="/how-to-create-mt5-ea" className="text-secondary hover:underline">
             How to create an MT5 EA
+          </Link>{" "}
+          ·{" "}
+          <Link href="/pricing" className="text-secondary hover:underline">
+            Pricing
           </Link>
         </p>
 

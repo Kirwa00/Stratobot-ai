@@ -96,6 +96,9 @@ export default function EaProgrammerAlternativePage() {
           Weighing whether to hire someone directly?{" "}
           <Link href="/compare/mql5-programmer" className="text-secondary hover:underline">
             See what that actually involves
+          </Link>{" "}
+          · <Link href="/compare/fxdreema-alternative" className="text-secondary hover:underline">
+            Or compare with fxDreema
           </Link>
         </p>
 

@@ -31,6 +31,10 @@ export default function LotSizeCalculatorPage() {
           <Link href="/tools/position-size-calculator" className="text-secondary hover:underline">
             Size a position by risk % instead
           </Link>
+          {" "}·{" "}
+          <Link href="/tools/pip-calculator" className="text-secondary hover:underline">
+            Exact pip value for any pair
+          </Link>
         </p>
 
         <CtaBanner />

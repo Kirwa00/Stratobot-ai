@@ -82,7 +82,8 @@ export default function CreateMt5EaPage() {
           <Link href="/compare/ea-programmer-alternative" className="text-secondary hover:underline">
             See the honest comparison
           </Link>{" "}
-          · <Link href="/how-to-create-mt5-ea" className="text-secondary hover:underline">Step-by-step guide</Link>
+          · <Link href="/how-to-create-mt5-ea" className="text-secondary hover:underline">Step-by-step guide</Link>{" "}
+          · <Link href="/compare/fxdreema-alternative" className="text-secondary hover:underline">StratoBot vs fxDreema</Link>
         </p>
 
         <CtaBanner />

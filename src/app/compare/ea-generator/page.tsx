@@ -79,6 +79,9 @@ export default function EaGeneratorComparePage() {
           </Link>{" "}
           · <Link href="/ai-ea-generator" className="text-secondary hover:underline">
             What the AI does and doesn&apos;t do
+          </Link>{" "}
+          · <Link href="/compare/fxdreema-alternative" className="text-secondary hover:underline">
+            StratoBot vs fxDreema
           </Link>
         </p>
 

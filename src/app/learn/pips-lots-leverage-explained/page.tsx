@@ -55,6 +55,9 @@ export default function PipsLotsLeverageExplainedPage() {
         </Link>{" "}
         · <Link href="/tools/lot-size-calculator" className="text-secondary hover:underline">
           Lot size converter
+        </Link>{" "}
+        · <Link href="/tools/pip-calculator" className="text-secondary hover:underline">
+          Pip value calculator
         </Link>
       </p>
     </ArticleShell>
