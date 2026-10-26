@@ -42,3 +42,7 @@ next-env.d.ts
 
 # translation benchmark output
 /scripts/translate-bench/results/
+
+# local development database (PGlite)
+/.data
+!.env.example

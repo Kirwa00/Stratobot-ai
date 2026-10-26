@@ -1,17 +1,10 @@
-"use client";
-
 import { Header } from "@/components/Header";
-import { useAdminGuard } from "@/lib/useAdminGuard";
 import { BLOCKS, CATEGORIES } from "@/lib/blocks";
 
-// The one admin section that needs no mock data — the block library is a
-// real, static TypeScript module (src/lib/blocks.ts), so this just reads it
-// directly. Read-only: editing block definitions means editing that file.
+// The block library is a static TypeScript module (src/lib/blocks.ts), so this
+// reads it directly. Admin sign-in is enforced by src/proxy.ts. Read-only: editing block definitions means editing that file.
 
 export default function AdminBlocksPage() {
-  const { checked, allowed } = useAdminGuard();
-  if (!checked || !allowed) return null;
-
   return (
     <div className="flex flex-col flex-1">
       <Header back title="Block Library" />

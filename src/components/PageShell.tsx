@@ -18,8 +18,6 @@ const APP_ROUTES = [
   "/install",
   "/library",
   "/login",
-  "/admin",
-  "/beta",
   "/feedback",
 ];
 
@@ -28,6 +26,8 @@ export function PageShell({ children }: { children: ReactNode }) {
   const width =
     path === "/"
       ? "max-w-none"
+      : path === "/admin" || path.startsWith("/admin/")
+        ? "max-w-6xl"
       : APP_ROUTES.some((r) => path === r || path.startsWith(`${r}/`))
         ? "max-w-[440px]"
         : "max-w-[720px]";

@@ -15,6 +15,8 @@ import { runStrategySimulation, strategyRules } from "./simulate";
 import { trackEvent } from "./analytics";
 import { describeRules, readbackText } from "./rules/describe";
 import { validateRules } from "./rules/validate";
+import { marketTimeframe } from "./rules/synthetic";
+import { fromPayload, type MarketPayload, type MarketSeries } from "./market/types";
 import type { BlockInstance, ClarifyingQuestion, SimulationResult, Strategy, UnmappedClause } from "./types";
 import { FREE_SIMS, PRO_DAYS } from "./constants";
 
@@ -99,6 +101,12 @@ interface MiscState {
   simsUsed: number;
   paidAt: number | null;
   disclaimerAccepted: boolean;
+  /** The strategy that used this browser's free first EA. Edits to that same
+   *  strategy stay unlocked; any other strategy needs a purchase. Browser-only
+   *  until accounts exist, so it's a convenience cap, not an enforcement. */
+  freeEaStrategyId?: string | null;
+  /** Strategies bought one-off (KES per EA), confirmed by PayHero via /api/pay/status. */
+  purchasedStrategyIds?: string[];
 }
 
 interface StoreValue {
@@ -108,11 +116,20 @@ interface StoreValue {
   /** Infinity while a 30-day Pro pass is active — always check with
    *  Number.isFinite() before rendering it as a plain number. */
   simsRemaining: number;
+  /** Can download the current strategy: an active Pro pass, or this is the free first EA. */
   paid: boolean;
+  /** This browser hasn't used its free first EA yet. */
+  freeEaAvailable: boolean;
   /** Whole days left on the current Pro pass, or null if not active. */
   proDaysLeft: number | null;
   disclaimerAccepted: boolean;
   parsing: boolean;
+  /** Real candles for the logic check (rule strategies). "unavailable" = no data provider or no data for it. */
+  market: MarketSeries | null;
+  marketStatus: "idle" | "loading" | "ready" | "unavailable";
+  loadMarket: (symbol: string) => Promise<void>;
+  /** Use candles the trader exported from their own MetaTrader (kept in memory only), or null for the made-up path. */
+  setMarketSeries: (series: MarketSeries | null) => void;
 
   startFromPrompt: (rawPrompt: string) => Promise<void>;
   /** Re-translate with answers to the translator's questions. Returns false if the translator is unavailable. */
@@ -128,6 +145,10 @@ interface StoreValue {
   runSim: () => void;
   runBatchSim: (count: number) => SimulationResult[];
   markPaid: () => void;
+  /** Spend the free first EA on the current strategy. */
+  claimFreeEa: () => void;
+  /** Record a confirmed one-off purchase of a strategy's EA. */
+  markEaPurchased: (strategyId: string) => void;
   acceptDisclaimer: () => void;
   resetAll: () => void;
 }
@@ -139,6 +160,8 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [market, setMarket] = useState<MarketSeries | null>(null);
+  const [marketStatus, setMarketStatus] = useState<StoreValue["marketStatus"]>("idle");
   const [misc, setMisc] = useState<MiscState>({
     simsUsed: 0,
     paidAt: null,
@@ -241,6 +264,32 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
     setStrategy((prev) => (prev ? { ...prev, questions: [], updatedAt: Date.now() } : prev));
   }, []);
 
+  const loadMarket = useCallback(
+    async (symbol: string) => {
+      const rules = strategy ? strategyRules(strategy) : null;
+      if (!rules) return;
+      const tf = marketTimeframe(rules);
+      if (market && market.symbol === symbol && market.tf === tf) return;
+      setMarketStatus("loading");
+      try {
+        const res = await fetch(`/api/candles?symbol=${encodeURIComponent(symbol)}&tf=${tf}`);
+        if (!res.ok) throw new Error(String(res.status));
+        setMarket(fromPayload((await res.json()) as MarketPayload));
+        setMarketStatus("ready");
+      } catch {
+        setMarket(null);
+        setMarketStatus("unavailable");
+      }
+    },
+    [strategy, market]
+  );
+
+  const setMarketSeries = useCallback((series: MarketSeries | null) => {
+    setMarket(series);
+    setMarketStatus(series ? "ready" : "idle");
+    setSimResult(null);
+  }, []);
+
   const startFromBlocks = useCallback(() => {
     setStrategy(emptyStrategy(""));
     setSimResult(null);
@@ -329,17 +378,15 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   );
 
   const runSim = useCallback(() => {
-    setStrategy((prev) => {
-      if (!prev) return prev;
-      const result = runStrategySimulation(prev, misc.simsUsed);
-      setSimResult(result);
-      return prev;
-    });
+    if (!strategy) return;
+    const result = runStrategySimulation(strategy, misc.simsUsed, market);
+    trackEvent("logic_check_run", { data: result.source?.kind ?? "synthetic" });
+    setSimResult(result);
     setMisc((m) => ({ ...m, simsUsed: m.simsUsed + 1 }));
-  }, [misc.simsUsed]);
+  }, [strategy, misc.simsUsed, market]);
 
-  // Runs several logic-check passes at once (each still a fresh synthetic
-  // path — never real market data) and hands back every result for the
+  // Runs several logic-check passes at once (each a different synthetic path,
+  // or a different stretch of the trader's own candles) and hands back every result for the
   // caller to aggregate. Kept separate from runSim/simResult so a batch
   // doesn't clobber the single-run view on the Simulate screen. Still
   // spends real simsRemaining credits, clamped to what's left.
@@ -353,15 +400,25 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       if (n === 0) return [];
       const results: SimulationResult[] = [];
       for (let i = 0; i < n; i++) {
-        results.push(runStrategySimulation(strategy, misc.simsUsed + i));
+        results.push(runStrategySimulation(strategy, misc.simsUsed + i, market));
       }
       setMisc((m) => ({ ...m, simsUsed: m.simsUsed + n }));
       return results;
     },
-    [strategy, misc.simsUsed, misc.paidAt]
+    [strategy, misc.simsUsed, misc.paidAt, market]
   );
 
   const markPaid = useCallback(() => setMisc((m) => ({ ...m, paidAt: Date.now() })), []);
+  const claimFreeEa = useCallback(() => {
+    if (!strategy) return;
+    trackEvent("free_ea_claimed");
+    setMisc((m) => (m.freeEaStrategyId ? m : { ...m, freeEaStrategyId: strategy.id }));
+  }, [strategy]);
+  const markEaPurchased = useCallback((strategyId: string) => {
+    setMisc((m) =>
+      m.purchasedStrategyIds?.includes(strategyId) ? m : { ...m, purchasedStrategyIds: [...(m.purchasedStrategyIds ?? []), strategyId] }
+    );
+  }, []);
   const acceptDisclaimer = useCallback(
     () => setMisc((m) => ({ ...m, disclaimerAccepted: true })),
     []
@@ -370,7 +427,14 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
   const resetAll = useCallback(() => {
     setStrategy(null);
     setSimResult(null);
-    setMisc({ simsUsed: 0, paidAt: null, disclaimerAccepted: false });
+    // The free-EA claim survives a reset: starting over shouldn't hand out another free EA.
+    setMisc((m) => ({
+      simsUsed: 0,
+      paidAt: null,
+      disclaimerAccepted: false,
+      freeEaStrategyId: m.freeEaStrategyId,
+      purchasedStrategyIds: m.purchasedStrategyIds,
+    }));
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(MISC_KEY);
   }, []);
@@ -410,10 +474,17 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       strategy,
       simResult,
       simsRemaining: proStatus.active ? Infinity : Math.max(0, FREE_SIMS - misc.simsUsed),
-      paid: proStatus.active,
+      paid:
+        proStatus.active ||
+        (!!strategy && (misc.freeEaStrategyId === strategy.id || !!misc.purchasedStrategyIds?.includes(strategy.id))),
+      freeEaAvailable: !misc.freeEaStrategyId,
       proDaysLeft: proStatus.daysLeft,
       disclaimerAccepted: misc.disclaimerAccepted,
       parsing,
+      market,
+      marketStatus,
+      loadMarket,
+      setMarketSeries,
       startFromPrompt,
       answerQuestions,
       skipQuestions,
@@ -426,6 +497,8 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       runSim,
       runBatchSim,
       markPaid,
+      claimFreeEa,
+      markEaPurchased,
       acceptDisclaimer,
       resetAll,
     }),
@@ -436,6 +509,10 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       misc,
       proStatus,
       parsing,
+      market,
+      marketStatus,
+      loadMarket,
+      setMarketSeries,
       startFromPrompt,
       answerQuestions,
       skipQuestions,
@@ -448,6 +525,8 @@ export function StrategyProvider({ children }: { children: ReactNode }) {
       updateBlockParams,
       runSim,
       markPaid,
+      claimFreeEa,
+      markEaPurchased,
       acceptDisclaimer,
       resetAll,
     ]
