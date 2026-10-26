@@ -1,6 +1,8 @@
 import { getBlock } from "./blocks";
 import { simulateRules, simulateRulesOnMarket } from "./rules/synthetic";
 import type { MarketSeries } from "./market/types";
+import { blocksToRules } from "./rules/from-blocks";
+import type { RuleStrategy } from "./rules/types";
 import type { BlockInstance, Candle, SimulationResult, SimulatedTrade, Strategy, TradeOutcome } from "./types";
 
 // Mock "logic check" simulator — Engineering Plan Phase 4 / UX Plan §5.4.
@@ -166,12 +168,21 @@ export function runSimulation(blocks: BlockInstance[], runIndex = 0): Simulation
   return { candles, trades, runAt: Date.now() };
 }
 
-/** One logic-check run. Rule strategies (AI-translated) run their real rules
- *  through the verified trade engine on a synthetic path (rules/synthetic.ts);
- *  block strategies use the block mock above. */
+/** The rules a strategy compiles to: the AI translator's, or the blocks translated
+ *  exactly as the composer does. null when nothing in it can open a trade. */
+export function strategyRules(strategy: Strategy): RuleStrategy | null {
+  if (strategy.rules) return strategy.rules;
+  return canTrade(strategy) ? blocksToRules(strategy.blocks.filter((b) => getBlock(b.blockId))) : null;
+}
+
+/** One logic-check run: the strategy's real rules through the verified trade
+ *  engine, on the trader's own candles when given (and long enough), otherwise
+ *  on a synthetic path (rules/synthetic.ts). The result's `source` says which.
+ *  The block mock above only remains for strategies with nothing that can open a trade. */
 export function runStrategySimulation(strategy: Strategy, runIndex = 0, market?: MarketSeries | null): SimulationResult {
-  if (!strategy.rules) return runSimulation(strategy.blocks, runIndex);
-  return (market && simulateRulesOnMarket(strategy.rules, market, runIndex)) || simulateRules(strategy.rules, runIndex);
+  const rules = strategyRules(strategy);
+  if (!rules) return runSimulation(strategy.blocks, runIndex);
+  return (market && simulateRulesOnMarket(rules, market, runIndex)) || simulateRules(rules, runIndex);
 }
 
 /** Whether anything in the strategy can open a trade. */
@@ -182,8 +193,9 @@ export function canTrade(strategy: Strategy): boolean {
 
 /** Whether the strategy has an exit the check can resolve trades against. */
 export function hasManagedExit(strategy: Strategy): boolean {
-  if (strategy.rules) {
-    const x = strategy.rules.exits;
+  const rules = strategyRules(strategy);
+  if (rules) {
+    const x = rules.exits;
     return Boolean(x.stopLoss || x.takeProfit || x.trailing || x.closeAfterBars || x.closeOnOpposite);
   }
   return buildExitPlan(strategy.blocks).mode !== "none";

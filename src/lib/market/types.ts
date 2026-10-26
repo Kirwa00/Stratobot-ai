@@ -31,6 +31,8 @@ export interface MarketSeries {
   candles: Candle[];
   /** Where the data came from, shown with every result (e.g. the provider's name). */
   source: string;
+  /** Contract details for symbols outside SYMBOLS (an uploaded MT5 export of any pair). */
+  info?: SymbolInfo;
 }
 
 /** Compact wire format for /api/candles. */

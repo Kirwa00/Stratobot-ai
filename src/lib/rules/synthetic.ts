@@ -1,5 +1,5 @@
 import { execute, type Tick } from "./execute";
-import { Interpreter, pipSize, type Candle } from "./interpret";
+import { Interpreter, pipSize, resample, type Candle } from "./interpret";
 import { SYMBOL_MAP, type MarketSeries, type SymbolInfo } from "../market/types";
 import { explainEntry, explainExit, formatNumber } from "./explain";
 import { buildNodeTable } from "./nodes";
@@ -207,16 +207,40 @@ const TF_NAMES: Record<Timeframe, string> = {
 const day = (sec: number) =>
   new Date(sec * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
+/** The series as candles of timeframe `tf`: as-is, resampled from a finer timeframe, or null if it's coarser. */
+const resampled = new WeakMap<MarketSeries, Map<Timeframe, Candle[]>>();
+
+export function marketCandles(series: MarketSeries, tf: Timeframe): Candle[] | null {
+  if (series.tf === tf) return series.candles;
+  if (TF_SECONDS[series.tf] > TF_SECONDS[tf]) return null;
+  let byTf = resampled.get(series);
+  if (!byTf) resampled.set(series, (byTf = new Map()));
+  let out = byTf.get(tf);
+  if (!out) byTf.set(tf, (out = resample(series.candles, tf)));
+  return out;
+}
+
+/** How many more candles of `tf` this series needs before the strategy can be checked on it (0 = enough), or null if the timeframe is too coarse. */
+export function marketShortfall(rules: RuleStrategy, series: MarketSeries): number | null {
+  const tf = marketTimeframe(rules);
+  const all = marketCandles(series, tf);
+  if (!all) return null;
+  return Math.max(0, lookback(rules, TF_SECONDS[tf]) + VISIBLE - all.length);
+}
+
 /** One window of real history, chosen by runIndex so each run checks a different stretch. null if the series is too short. */
 export function simulateRulesOnMarket(rules: RuleStrategy, series: MarketSeries, runIndex = 0): SimulationResult | null {
-  const sym = SYMBOL_MAP[series.symbol];
-  if (!sym || series.tf !== marketTimeframe(rules)) return null;
-  const baseSeconds = TF_SECONDS[series.tf];
+  const sym = series.info ?? SYMBOL_MAP[series.symbol];
+  const tf = marketTimeframe(rules);
+  if (!sym) return null;
+  const all = marketCandles(series, tf);
+  if (!all) return null;
+  const baseSeconds = TF_SECONDS[tf];
   const warmup = lookback(rules, baseSeconds);
-  const room = series.candles.length - warmup - VISIBLE;
+  const room = all.length - warmup - VISIBLE;
   if (room < 0) return null;
   const start = warmup + ((hash(JSON.stringify(rules)) + runIndex * 7919) % (room + 1));
-  const candles = series.candles.slice(start - warmup, start + VISIBLE);
+  const candles = all.slice(start - warmup, start + VISIBLE);
   const { trades, visible } = runOnCandles(rules, candles, warmup, baseSeconds, sym);
   return {
     candles: normalized(visible),
@@ -224,7 +248,7 @@ export function simulateRulesOnMarket(rules: RuleStrategy, series: MarketSeries,
     runAt: Date.now(),
     source: {
       kind: "real",
-      label: `${sym.label}, ${TF_NAMES[series.tf]} candles, ${day(visible[0].time)} to ${day(visible[visible.length - 1].time)}`,
+      label: `${sym.label}, ${TF_NAMES[tf]} candles, ${day(visible[0].time)} to ${day(visible[visible.length - 1].time)}`,
       provider: series.source,
     },
   };

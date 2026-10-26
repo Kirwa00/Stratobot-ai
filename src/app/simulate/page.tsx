@@ -7,6 +7,7 @@ import { Button } from "@/components/Button";
 import { StrategyStrip } from "@/components/StrategyStrip";
 import { SimulationChart } from "@/components/SimulationChart";
 import { TradeList } from "@/components/TradeList";
+import { MarketDataPanel } from "@/components/MarketDataPanel";
 import { useStrategyStore, simsButtonLabel } from "@/lib/store";
 import { canTrade, hasManagedExit, simulationMessage, simulationStats } from "@/lib/simulate";
 
@@ -31,6 +32,7 @@ export default function SimulatePage() {
       {!strategy.rules && <StrategyStrip blocks={strategy.blocks} />}
 
       <main className="flex-1 overflow-y-auto px-4 py-6 pb-32 flex flex-col gap-5">
+        <MarketDataPanel />
         {!simResult ? (
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-sm text-chalk/60">No run yet for this strategy.</p>
@@ -43,6 +45,11 @@ export default function SimulatePage() {
           </div>
         ) : (
           <>
+            <p className="text-xs text-chalk/60 -mb-3">
+              {simResult.source?.kind === "real"
+                ? `Real candles: ${simResult.source.label}`
+                : "Made-up price path"}
+            </p>
             <SimulationChart result={simResult} />
 
             <div>
@@ -108,8 +115,9 @@ export default function SimulatePage() {
               <p className="text-sm text-chalk/80 leading-relaxed">
                 This is a logic check, not a backtest. It shows whether your rules fire — not
                 whether they make money.{" "}
-                Your exact rules ran through the same trade logic as the bot, on a made-up price
-                path, not real market data.{" "}
+                {simResult.source?.kind === "real"
+                  ? "Your exact rules ran through the same trade logic as the bot, on a stretch of your own MT5 history. Inside each candle the order of high and low is estimated, so MT5's Strategy Tester can differ slightly. Past candles say nothing about future results."
+                  : "Your exact rules ran through the same trade logic as the bot, on a made-up price path, not real market data."}{" "}
                 Test on a demo account before going live.
               </p>
             </div>
