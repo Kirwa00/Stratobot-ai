@@ -210,7 +210,7 @@ export function AppClient() {
           </Link>
           <Link href="/library">
             <Button variant="ghost" className="w-full">
-              Browse video strategies
+              Build from a YouTube video
             </Button>
           </Link>
         </div>

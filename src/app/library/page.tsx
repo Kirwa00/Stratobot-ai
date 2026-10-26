@@ -1,255 +1,225 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { useStrategyStore } from "@/lib/store";
+import { trackEvent } from "@/lib/analytics";
+import { MAX_TRANSCRIPT_CHARS, youtubeId, type VideoMeta, type VideoStrategy } from "@/lib/video-strategy";
 
-// Enhanced video-derived strategies with YouTube integration
-// In production these come from the admin Curation Hub (Engineering Plan §3-B3 / SDLC)
-const PRESETS = [
-  {
-    id: "strat-1",
-    name: "London Sweep + Retrace",
-    source: "ICT Concepts — Shorts",
-    youtubeId: "abc123",
-    duration: "8:24",
-    thumbnailUrl: "https://img.youtube.com/vi/abc123/default.jpg",
-    prompt:
-      "Trade only during the London session. Sweep the previous day high, then enter short on a 50% retrace. Trail the stop by 30 pips.",
-    category: "Session Trading",
-    difficulty: "Intermediate",
-    usageCount: 234
-  },
-  {
-    id: "strat-2",
-    name: "NY Order Block",
-    source: "Smart Money Basics — Shorts",
-    youtubeId: "def456",
-    duration: "12:15",
-    thumbnailUrl: "https://img.youtube.com/vi/def456/default.jpg",
-    prompt:
-      "Wait for a bullish order block during New York session, enter on an engulfing candle, trail stop 25 pips.",
-    category: "Smart Money",
-    difficulty: "Beginner",
-    usageCount: 189
-  },
-  {
-    id: "strat-3",
-    name: "EMA Trend Cross",
-    source: "Simple Systems — Shorts",
-    youtubeId: "ghi789",
-    duration: "6:45",
-    thumbnailUrl: "https://img.youtube.com/vi/ghi789/default.jpg",
-    prompt:
-      "9 and 21 EMA cross, only when ATR is above average, trail the stop by 20 pips.",
-    category: "Trend Following",
-    difficulty: "Beginner",
-    usageCount: 312
-  },
-  {
-    id: "strat-4",
-    name: "Asia Range Fib",
-    source: "Session Trading — Shorts",
-    youtubeId: "jkl012",
-    duration: "10:30",
-    thumbnailUrl: "https://img.youtube.com/vi/jkl012/default.jpg",
-    prompt:
-      "During the Asia session, wait for a fair value gap, then enter on a 61.8% retrace, trail stop 15 pips.",
-    category: "Session Trading",
-    difficulty: "Advanced",
-    usageCount: 156
-  },
-  {
-    id: "strat-5",
-    name: "FVG Breakout",
-    source: "ICT Advanced — Shorts",
-    youtubeId: "mno345",
-    duration: "15:20",
-    thumbnailUrl: "https://img.youtube.com/vi/mno345/default.jpg",
-    prompt:
-      "Wait for a fair value gap during London session, enter on breakout with 20 pip stop loss.",
-    category: "Breakout",
-    difficulty: "Advanced",
-    usageCount: 98
-  }
-];
+// Build an EA from a trading video. The trader pastes the link (we show the
+// video via YouTube's official oEmbed) and the video's transcript, which
+// YouTube shows under every video. Claude writes down the strategy the video
+// teaches and lists what it leaves open; the trader edits it, then it goes
+// through the same readback → logic check → download flow as a typed strategy.
 
-const CATEGORIES = ["All", "Session Trading", "Smart Money", "Trend Following", "Breakout"];
-const DIFFICULTY_LEVELS = ["All", "Beginner", "Intermediate", "Advanced"];
+const ERRORS: Record<string, string> = {
+  transcript_too_short: "Paste the transcript (or your notes on the video) first.",
+  transcript_too_long: `That's over ${MAX_TRANSCRIPT_CHARS.toLocaleString("en-GB")} characters. Paste just the part that explains the strategy.`,
+  ai_unavailable: "Reading videos needs StratoBot's AI service, which isn't switched on right now. You can still type the strategy yourself on the main screen.",
+  rate_limited: "Too many videos in the last hour. Try again later.",
+  extraction_failed: "Couldn't read a strategy from that. Try pasting just the part where the rules are explained.",
+};
 
-export default function LibraryPage() {
+export default function VideoStrategyPage() {
   const router = useRouter();
-  const { loadPreset } = useStrategyStore();
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedDifficulty, setSelectedDifficulty] = useState("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  const { startFromPrompt, parsing } = useStrategyStore();
+  const urlId = useId();
+  const transcriptId = useId();
+  const descriptionId = useId();
 
-  const filteredPresets = PRESETS.filter(preset => {
-    const matchesCategory = selectedCategory === "All" || preset.category === selectedCategory;
-    const matchesDifficulty = selectedDifficulty === "All" || preset.difficulty === selectedDifficulty;
-    const matchesSearch = searchQuery === "" || 
-      preset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      preset.source.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesDifficulty && matchesSearch;
-  });
+  const [url, setUrl] = useState("");
+  const [meta, setMeta] = useState<VideoMeta | null>(null);
+  const [metaState, setMetaState] = useState<"idle" | "loading" | "ok" | "bad">("idle");
+  const [transcript, setTranscript] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<VideoStrategy | null>(null);
+  const [description, setDescription] = useState("");
 
-  const handleLoadPreset = (preset: typeof PRESETS[0]) => {
-    loadPreset(preset.prompt, preset.name);
+  // Look the video up once the link parses.
+  const id = youtubeId(url);
+  useEffect(() => {
+    if (!id) {
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setMeta(null);
+      setMetaState(url.trim() ? "bad" : "idle");
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return;
+    }
+    let cancelled = false;
+    setMetaState("loading");
+    fetch(`/api/video-strategy?url=${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<VideoMeta>) : null))
+      .then((m) => {
+        if (cancelled) return;
+        setMeta(m);
+        setMetaState(m ? "ok" : "bad");
+      })
+      .catch(() => !cancelled && setMetaState("bad"));
+    return () => {
+      cancelled = true;
+    };
+  }, [id, url]);
+
+  async function extract() {
+    setError(null);
+    setResult(null);
+    setExtracting(true);
+    try {
+      const res = await fetch("/api/video-strategy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: id ?? "", transcript }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(ERRORS[data.error] ?? ERRORS.extraction_failed);
+        return;
+      }
+      setResult(data.strategy);
+      setDescription(data.strategy.description);
+      if (data.strategy.found) trackEvent("video_strategy_found");
+    } catch {
+      setError(ERRORS.extraction_failed);
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function build() {
+    const text = description.trim();
+    if (!text) return;
+    await startFromPrompt(text);
     router.push("/readback");
-  };
-
-  const handleWatchVideo = (e: React.MouseEvent, youtubeId: string) => {
-    e.stopPropagation();
-    // Open YouTube video
-    window.open(`https://www.youtube.com/watch?v=${youtubeId}`, "_blank");
-  };
+  }
 
   return (
     <div className="flex flex-col flex-1">
-      <Header back title="Strategy Library" />
-      <main className="flex-1 overflow-y-auto px-4 py-6">
-        {/* Header */}
-        <div className="mb-4">
-          <h1 className="font-display font-bold text-xl text-chalk mb-1">
-            Video Strategies
-          </h1>
-          <p className="text-sm text-chalk/60">
-            Strategies from trading videos, mapped to blocks by experts
+      <Header back title="From a video" />
+      <main className="flex-1 overflow-y-auto px-4 py-6 pb-10 flex flex-col gap-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-chalk mb-2">Build the strategy from a YouTube video</h1>
+          <p className="text-sm text-chalk/70 leading-relaxed">
+            Paste a trading video and its transcript. StratoBot writes down the rules the video
+            teaches, tells you what it leaves out, and builds them into an MT5 EA you can check
+            first.
           </p>
         </div>
 
-        {/* Search */}
-        <div className="relative mb-4">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-chalk/40 text-lg">
-            search
-          </span>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={urlId} className="text-sm font-medium text-chalk">
+            1. YouTube link
+          </label>
           <input
-            type="text"
-            placeholder="Search strategies..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-outline bg-slate text-chalk placeholder:text-chalk/40 text-sm focus:outline-none focus:ring-1 focus:ring-signal"
+            id={urlId}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=…"
+            inputMode="url"
+            className="rounded-lg border border-outline bg-slate-high text-chalk placeholder:text-chalk/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary"
           />
-        </div>
-
-        {/* Category Filters */}
-        <div className="mb-4">
-          <p className="text-xs text-chalk/50 mb-2 uppercase tracking-wide">Category</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {CATEGORIES.map(category => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category
-                    ? "bg-signal text-on-signal"
-                    : "bg-slate text-chalk/70 hover:bg-slate-high"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Difficulty Filters */}
-        <div className="mb-6">
-          <p className="text-xs text-chalk/50 mb-2 uppercase tracking-wide">Difficulty</p>
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            {DIFFICULTY_LEVELS.map(level => (
-              <button
-                key={level}
-                onClick={() => setSelectedDifficulty(level)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  selectedDifficulty === level
-                    ? "bg-signal text-on-signal"
-                    : "bg-slate text-chalk/70 hover:bg-slate-high"
-                }`}
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Strategy Cards */}
-        <div className="flex flex-col gap-3">
-          {filteredPresets.length === 0 ? (
-            <div className="text-center py-12">
-              <span className="material-symbols-outlined text-4xl text-chalk/20 mb-2">
-                search_off
-              </span>
-              <p className="text-sm text-chalk/40">No strategies found</p>
-            </div>
-          ) : (
-            filteredPresets.map((preset) => (
-              <div
-                key={preset.id}
-                className="p-3 rounded-lg border border-outline bg-slate hover:border-signal/50 transition-colors"
-              >
-                <div className="flex gap-3 mb-3">
-                  {/* Thumbnail */}
-                  <div className="w-28 h-20 shrink-0 rounded-md bg-slate-high overflow-hidden relative">
-                    <img
-                      src={preset.thumbnailUrl}
-                      alt={preset.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='80'%3E%3Crect fill='%231b2333' width='112' height='80'/%3E%3Ctext fill='%2384967e' font-size='12' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3ENo Thumbnail%3C/text%3E%3C/svg%3E";
-                      }}
-                    />
-                    <div className="absolute bottom-1 right-1 bg-black/70 px-1.5 py-0.5 rounded text-xs text-white mono-num">
-                      {preset.duration}
-                    </div>
-                    <button
-                      onClick={(e) => handleWatchVideo(e, preset.youtubeId)}
-                      className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
-                    >
-                      <span className="material-symbols-outlined text-white text-3xl">
-                        play_circle
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Content */}
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-medium text-chalk mb-1 line-clamp-2">
-                      {preset.name}
-                    </h3>
-                    <p className="text-xs text-chalk/50 mb-2">
-                      {preset.source}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-slate-high text-chalk/70">
-                        {preset.category}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-slate-high text-chalk/70">
-                        {preset.difficulty}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-xs text-chalk/40">
-                    <span className="material-symbols-outlined text-sm">trending_up</span>
-                    <span className="mono-num">{preset.usageCount}</span>
-                    <span>uses</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleLoadPreset(preset)}
-                  >
-                    Load Strategy
-                  </Button>
-                </div>
+          {metaState === "bad" && <p className="text-xs text-sell">That doesn&apos;t look like a YouTube video link.</p>}
+          {metaState === "loading" && <p className="text-xs text-chalk/50">Finding the video…</p>}
+          {meta && (
+            <div className="flex gap-3 items-center rounded-lg border border-outline bg-slate p-2 mt-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={meta.thumbnail} alt="" className="w-28 aspect-video object-cover rounded" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-chalk line-clamp-2">{meta.title}</p>
+                <p className="text-xs text-chalk/60">{meta.channel}</p>
+                <a href={meta.url} target="_blank" rel="noopener noreferrer" className="text-xs text-secondary hover:underline">
+                  Open on YouTube
+                </a>
               </div>
-            ))
+            </div>
           )}
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={transcriptId} className="text-sm font-medium text-chalk">
+            2. The video&apos;s transcript
+          </label>
+          <p className="text-xs text-chalk/60 leading-relaxed">
+            On YouTube, open the description (&ldquo;…more&rdquo;) and press{" "}
+            <span className="font-semibold">Show transcript</span>. Select the transcript text, copy it
+            and paste it here. No transcript? Write the rules the video explains in your own words.
+          </p>
+          <textarea
+            id={transcriptId}
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            rows={8}
+            maxLength={MAX_TRANSCRIPT_CHARS}
+            placeholder="0:00 Today I'll show you my London breakout strategy…"
+            className="rounded-lg border border-outline bg-slate-high text-chalk placeholder:text-chalk/40 px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary"
+          />
+          <Button onClick={extract} disabled={transcript.trim().length < 40 || extracting} className="mt-1">
+            {extracting ? "Reading the video…" : "Find the strategy"}
+          </Button>
+          {error && (
+            <p role="alert" className="text-xs text-sell">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {result && !result.found && (
+          <div className="rounded-lg border border-caution/50 bg-slate px-4 py-3.5">
+            <p className="text-sm font-semibold text-chalk mb-1">No tradable strategy found</p>
+            <ul className="text-sm text-chalk/75 list-disc pl-5">
+              {result.missing.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {result?.found && (
+          <section className="flex flex-col gap-3">
+            <label htmlFor={descriptionId} className="text-sm font-medium text-chalk">
+              3. The strategy, as the video teaches it{result.name ? `: ${result.name}` : ""}
+            </label>
+            <p className="text-xs text-chalk/60">Edit anything before building. Fill in what the video left out.</p>
+            <textarea
+              id={descriptionId}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={6}
+              className="rounded-lg border border-outline bg-slate-high text-chalk px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary"
+            />
+            {result.missing.length > 0 && (
+              <div className="rounded-lg border border-caution/50 bg-slate px-4 py-3">
+                <p className="text-xs font-mono font-bold tracking-wider uppercase text-caution mb-1.5">Not in the video</p>
+                <ul className="text-sm text-chalk/80 list-disc pl-5 flex flex-col gap-1">
+                  {result.missing.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.discretionary.length > 0 && (
+              <div className="rounded-lg border border-outline bg-slate px-4 py-3">
+                <p className="text-xs font-mono font-bold tracking-wider uppercase text-chalk/50 mb-1.5">
+                  Judgement calls an EA can&apos;t make
+                </p>
+                <ul className="text-sm text-chalk/80 list-disc pl-5 flex flex-col gap-1">
+                  {result.discretionary.map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <Button onClick={build} disabled={!description.trim() || parsing}>
+              {parsing ? "Reading your strategy…" : "Build this strategy"}
+            </Button>
+            <p className="text-xs text-chalk/50 leading-relaxed">
+              Next you&apos;ll see exactly what the EA will do, rule by rule, and can run a logic
+              check before downloading. A video&apos;s strategy isn&apos;t a promise of profit.
+            </p>
+          </section>
+        )}
       </main>
     </div>
   );

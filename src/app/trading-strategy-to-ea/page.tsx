@@ -81,9 +81,9 @@ export default function TradingStrategyToEaPage() {
         </div>
 
         <p className="text-sm text-chalk/70 text-center">
-          Not sure which fits?{" "}
+          Learned it from a video?{" "}
           <Link href="/library" className="text-secondary hover:underline">
-            Browse example strategies
+            Build it from the YouTube link
           </Link>{" "}
           · <Link href="/adjust?new=1" className="text-secondary hover:underline">
             Build with blocks instead
