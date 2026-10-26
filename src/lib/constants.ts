@@ -5,13 +5,18 @@
 // Server Component, and plain constants can't survive that crossing.
 export const FREE_SIMS = 5;
 export const PRO_DAYS = 30;
-export const PRICE_KES = 2500;
-/** How the Pro price is stated everywhere on the site (and in the explainer video). */
-export const PRICE_PER_MONTH = `KES ${PRICE_KES.toLocaleString("en-KE")} per month`;
-/** Shared code handed out by email to beta testers so they can redeem a real
- *  30-day Pro pass (via markPaid()) without paying — not a per-user secret,
- *  same trust model as the rest of this no-backend app. */
-export const BETA_CODE = "STRATOBETA30";
+/** Pricing from the founder business plan (25 Oct 2026): the first EA is free,
+ *  then each EA is a one-off purchase; Pro is the quieter option for traders
+ *  who rebuild often. Every price on the site reads from here. */
+export const PRICE_PER_EA_KES = 1000;
+export const PRO_MONTHLY_KES = 1500;
+const kes = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
+export const PRICE_PER_EA = `${kes(PRICE_PER_EA_KES)} per EA`;
+export const PRO_PER_MONTH = `${kes(PRO_MONTHLY_KES)} per month`;
+export const PRICE_EA_SHORT = kes(PRICE_PER_EA_KES);
+export const PRICE_PRO_SHORT = kes(PRO_MONTHLY_KES);
+/** Payments aren't wired up yet; buy buttons say so instead of pretending. */
+export const PAYMENTS_LIVE = false;
 
 /** Example descriptions offered to first-time users (builder, homepage, demo).
  *  examples.test.ts checks each one builds a two-sided bot with a stop loss that

@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CtaBanner } from "@/components/CtaBanner";
 import { Footer } from "@/components/Footer";
-import { EXAMPLE_STRATEGIES, FREE_SIMS, PRICE_KES } from "@/lib/constants";
+import { EXAMPLE_STRATEGIES, FREE_SIMS, PRICE_EA_SHORT, PRICE_PRO_SHORT } from "@/lib/constants";
 import { TrackView } from "@/components/TrackView";
 import { ExplainerVideo } from "@/components/ExplainerVideo";
 import { TrackedLink } from "@/components/TrackedLink";
@@ -307,26 +307,26 @@ export default function LandingPage() {
             Simple pricing
           </h2>
           <p className="text-chalk/65 mb-8">
-            We&apos;re in beta: payments aren&apos;t live yet, so Pro is free for now.
+            Your first EA is free. Pay only for the ones you build after that.
           </p>
           <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
             <div className="rounded-2xl border border-outline px-6 py-7">
               <p className="text-sm font-semibold text-chalk/60 mb-2">Free</p>
               <p className="font-display text-4xl text-chalk mb-3">KES 0</p>
               <p className="text-sm text-chalk/70 leading-relaxed">
-                Describe your strategy, review the rules and run {FREE_SIMS} logic checks. No
-                account needed.
+                Describe your strategy, review the rules, run {FREE_SIMS} logic checks and
+                download your first EA. No account needed.
               </p>
             </div>
             <div className="rounded-2xl bg-slate shadow-soft border border-outline px-6 py-7">
-              <p className="text-sm font-semibold text-accent mb-2">Pro</p>
+              <p className="text-sm font-semibold text-accent mb-2">Each EA after that</p>
               <p className="font-display text-4xl text-chalk mb-3">
-                <span>KES {PRICE_KES.toLocaleString("en-KE")}</span>
-                <span className="font-body text-base text-chalk/60"> / month</span>
-                <span className="font-body text-sm text-buy ml-2 align-middle">free during beta</span>
+                <span>{PRICE_EA_SHORT}</span>
+                <span className="font-body text-base text-chalk/60"> one-off</span>
               </p>
               <p className="text-sm text-chalk/70 leading-relaxed">
-                Unlimited strategies, logic checks and .mq5 downloads, every month.
+                Yours to keep and re-download as you adjust it. Building a lot? Pro is{" "}
+                {PRICE_PRO_SHORT} a month for unlimited EAs.
               </p>
             </div>
           </div>

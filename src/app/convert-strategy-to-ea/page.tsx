@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { YouTubeExplainer } from "@/components/YouTubeExplainer";
-import { PRICE_KES } from "@/lib/constants";
+import { PRICE_PER_EA } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -139,9 +139,8 @@ export default function ConvertStrategyToEaPage() {
             Pricing
           </p>
           <p className="text-sm text-chalk/85 leading-relaxed">
-            Free to describe your strategy and run logic checks. KES{" "}
-            {PRICE_KES.toLocaleString("en-KE")} per month unlocks unlimited strategies and
-            downloads.{" "}
+            Free to describe your strategy and run logic checks, and your first EA is free.
+            After that, each EA is {PRICE_PER_EA}.{" "}
             <Link href="/pricing" className="text-secondary hover:underline">
               See full pricing
             </Link>

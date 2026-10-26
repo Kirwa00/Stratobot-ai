@@ -118,6 +118,8 @@ export interface SimulationResult {
   candles: Candle[]; // normalized 0-1 OHLC path
   trades: SimulatedTrade[];
   runAt: number;
+  /** Rule strategies: what the check ran on. Real data carries a label like "EUR/USD, 1-hour candles, 3 Mar 2025 to 9 Mar 2025". */
+  source?: { kind: "synthetic" } | { kind: "real"; label: string; provider: string };
 }
 
 export const CONFIDENCE_THRESHOLD = 0.75;

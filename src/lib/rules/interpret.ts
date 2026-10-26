@@ -70,7 +70,7 @@ function bucket(time: number, tf: Timeframe): number {
   return Math.floor(time / s) * s;
 }
 
-function resample(candles: Candle[], tf: Timeframe): Candle[] {
+export function resample(candles: Candle[], tf: Timeframe): Candle[] {
   const out: Candle[] = [];
   for (const c of candles) {
     const t = bucket(c.time, tf);

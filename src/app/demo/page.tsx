@@ -4,7 +4,7 @@ import { CtaBanner } from "@/components/CtaBanner";
 import { buildMetadata } from "@/lib/seo";
 import { RulesReadback } from "@/components/RulesReadback";
 import { ExplainerVideo } from "@/components/ExplainerVideo";
-import { EXAMPLE_STRATEGIES, PRICE_PER_MONTH } from "@/lib/constants";
+import { EXAMPLE_STRATEGIES, PRICE_PER_EA } from "@/lib/constants";
 import { parsePrompt } from "@/lib/parser";
 import { blocksToRules } from "@/lib/rules/from-blocks";
 
@@ -48,7 +48,7 @@ const STAGES = [
     n: "05",
     icon: "lock_open",
     title: "Unlock",
-    body: `Activate Pro (${PRICE_PER_MONTH}, free while StratoBot is in beta).`,
+    body: `Your first EA is free. After that, each one is ${PRICE_PER_EA}.`,
   },
   {
     n: "06",

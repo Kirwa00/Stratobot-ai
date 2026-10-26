@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { YouTubeExplainer } from "@/components/YouTubeExplainer";
-import { PRICE_PER_MONTH } from "@/lib/constants";
+import { PRICE_PER_EA, PRO_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -33,7 +33,7 @@ const ROWS: { label: string; fxdreema: string; stratobot: string }[] = [
   {
     label: "Paid",
     fxdreema: "Subscriptions from 1 to 12 months",
-    stratobot: `${PRICE_PER_MONTH} to download the .mq5 (free during the beta)`,
+    stratobot: `First EA free, then ${PRICE_PER_EA} (or Pro, ${PRO_PER_MONTH})`,
   },
   {
     label: "Before you download",

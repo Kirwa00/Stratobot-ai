@@ -10,12 +10,6 @@ export const metadata = buildMetadata({
 
 const POSTS = [
   {
-    href: "/blog/stratobot-beta-launch",
-    date: "September 21, 2026",
-    title: "StratoBot is in private beta — here's what we're testing",
-    body: "Why we opened a beta, what free 30-day access gets you, and what we're trying to learn from it.",
-  },
-  {
     href: "/blog/why-we-dont-call-it-an-ai-trading-bot",
     date: "September 21, 2026",
     title: "Why we don't call StratoBot an \"AI trading bot\"",

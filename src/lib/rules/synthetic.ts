@@ -1,16 +1,18 @@
 import { execute, type Tick } from "./execute";
-import { Interpreter, type Candle } from "./interpret";
+import { Interpreter, pipSize, type Candle } from "./interpret";
+import { SYMBOL_MAP, type MarketSeries, type SymbolInfo } from "../market/types";
 import { explainEntry, explainExit, formatNumber } from "./explain";
 import { buildNodeTable } from "./nodes";
 import type { RuleStrategy, Timeframe, Value } from "./types";
 import type { SimulatedTrade, SimulationResult } from "../types";
 
 // Logic check for rule strategies: the strategy's own rules, run through the
-// MT5-verified trade engine (execute.ts), on a synthetic EURUSD-like price
-// path. Trades fire exactly where the compiled EA would fire them on that
-// path. The path is random, not market data, so this shows how the rules
-// behave (how often they trigger, which exits resolve) and nothing about
-// profitability.
+// MT5-verified trade engine (execute.ts), either on real historical candles
+// (simulateRulesOnMarket) or on a synthetic EURUSD-like price path
+// (simulateRules). Trades fire exactly where the compiled EA would fire them
+// on that data. It shows how the rules behave (how often they trigger, which
+// exits resolve) and nothing about future profitability. Inside each candle
+// the order of the high and low is estimated from the candle's direction.
 
 const VISIBLE = 150;
 const MAX_WARMUP = 20000;
@@ -98,29 +100,33 @@ export function buildPath(count: number, baseSeconds: number, rng: () => number)
 }
 
 /** Four ticks per bar in MT5's 1-minute-OHLC order: open, then low/high (bullish) or high/low (bearish), then close. */
-export function ticksFor(candles: Candle[], from: number, baseSeconds: number): Tick[] {
+export function ticksFor(candles: Candle[], from: number, baseSeconds: number, point = POINT, spread = SPREAD): Tick[] {
+  const round = (p: number) => Math.round(p / point) * point;
   const ticks: Tick[] = [];
   const step = Math.max(1, Math.floor(baseSeconds / 4));
   for (let i = from; i < candles.length; i++) {
     const c = candles[i];
     const path = c.close >= c.open ? [c.open, c.low, c.high, c.close] : [c.open, c.high, c.low, c.close];
-    path.forEach((bid, j) => ticks.push({ time: (c.time + j * step) * 1000, bid, ask: round(bid + SPREAD) }));
+    path.forEach((bid, j) => ticks.push({ time: (c.time + j * step) * 1000, bid, ask: round(bid + spread) }));
   }
   return ticks;
 }
 
-export function simulateRules(rules: RuleStrategy, runIndex = 0): SimulationResult {
-  const baseTf: Timeframe = rules.timeframe === "chart" ? "H1" : rules.timeframe;
-  const baseSeconds = TF_SECONDS[baseTf];
-  const warmup = lookback(rules, baseSeconds);
-  const rng = seededRandom(hash(JSON.stringify(rules)) + runIndex * 7919 + 1);
-  const candles = buildPath(warmup + VISIBLE, baseSeconds, rng);
-  const ticks = ticksFor(candles, warmup, baseSeconds);
+const EURUSD = SYMBOL_MAP.EURUSD;
 
+interface Run {
+  trades: SimulatedTrade[];
+  visible: Candle[];
+}
+
+/** Run the rules over candles[warmup..], with candles[0..warmup) as indicator history. */
+function runOnCandles(rules: RuleStrategy, candles: Candle[], warmup: number, baseSeconds: number, sym: SymbolInfo): Run {
+  const pip = pipSize(sym.digits, sym.point);
+  const ticks = ticksFor(candles, warmup, baseSeconds, sym.point, sym.spreadPoints * sym.point);
   const events = execute(rules, candles, ticks, {
-    pip: PIP,
+    pip,
     serverGmtOffsetHours: 0,
-    symbol: { digits: 5, point: POINT, volumeStep: 0.01, volumeMin: 0.01, volumeMax: 100, tickValue: 1, tickSize: POINT },
+    symbol: { digits: sym.digits, point: sym.point, volumeStep: 0.01, volumeMin: 0.01, volumeMax: 100, tickValue: sym.tickValue, tickSize: sym.point },
     initialBalance: 10000,
     startBar: candles[warmup - 1].time,
     noSignalDirection: "buy",
@@ -135,7 +141,7 @@ export function simulateRules(rules: RuleStrategy, runIndex = 0): SimulationResu
   };
 
   // Entries are decided on the first tick of a bar, so the event's bar is the decision bar.
-  const interp = new Interpreter(rules, candles, { pip: PIP, serverGmtOffsetHours: 0 });
+  const interp = new Interpreter(rules, candles, { pip, serverGmtOffsetHours: 0 });
   const decisionBar = (ms: number) => warmup + barOf(ms);
 
   const trades: SimulatedTrade[] = [];
@@ -162,13 +168,64 @@ export function simulateRules(rules: RuleStrategy, runIndex = 0): SimulationResu
       current = null;
     }
   }
+  return { trades, visible };
+}
 
+function normalized(visible: Candle[]) {
   const lo = Math.min(...visible.map((c) => c.low));
   const hi = Math.max(...visible.map((c) => c.high));
   const scale = (p: number) => (hi > lo ? (p - lo) / (hi - lo) : 0.5);
+  return visible.map((c) => ({ open: scale(c.open), high: scale(c.high), low: scale(c.low), close: scale(c.close) }));
+}
+
+export function simulateRules(rules: RuleStrategy, runIndex = 0): SimulationResult {
+  const baseTf = marketTimeframe(rules);
+  const baseSeconds = TF_SECONDS[baseTf];
+  const warmup = lookback(rules, baseSeconds);
+  const rng = seededRandom(hash(JSON.stringify(rules)) + runIndex * 7919 + 1);
+  const candles = buildPath(warmup + VISIBLE, baseSeconds, rng);
+  const { trades, visible } = runOnCandles(rules, candles, warmup, baseSeconds, EURUSD);
+  return { candles: normalized(visible), trades, runAt: Date.now(), source: { kind: "synthetic" } };
+}
+
+/** The timeframe of candles this strategy is checked on (chart-timeframe strategies use H1). */
+export function marketTimeframe(rules: RuleStrategy): Timeframe {
+  return rules.timeframe === "chart" ? "H1" : rules.timeframe;
+}
+
+const TF_NAMES: Record<Timeframe, string> = {
+  M1: "1-minute",
+  M5: "5-minute",
+  M15: "15-minute",
+  M30: "30-minute",
+  H1: "1-hour",
+  H4: "4-hour",
+  D1: "daily",
+  W1: "weekly",
+};
+
+const day = (sec: number) =>
+  new Date(sec * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** One window of real history, chosen by runIndex so each run checks a different stretch. null if the series is too short. */
+export function simulateRulesOnMarket(rules: RuleStrategy, series: MarketSeries, runIndex = 0): SimulationResult | null {
+  const sym = SYMBOL_MAP[series.symbol];
+  if (!sym || series.tf !== marketTimeframe(rules)) return null;
+  const baseSeconds = TF_SECONDS[series.tf];
+  const warmup = lookback(rules, baseSeconds);
+  const room = series.candles.length - warmup - VISIBLE;
+  if (room < 0) return null;
+  const start = warmup + ((hash(JSON.stringify(rules)) + runIndex * 7919) % (room + 1));
+  const candles = series.candles.slice(start - warmup, start + VISIBLE);
+  const { trades, visible } = runOnCandles(rules, candles, warmup, baseSeconds, sym);
   return {
-    candles: visible.map((c) => ({ open: scale(c.open), high: scale(c.high), low: scale(c.low), close: scale(c.close) })),
+    candles: normalized(visible),
     trades,
     runAt: Date.now(),
+    source: {
+      kind: "real",
+      label: `${sym.label}, ${TF_NAMES[series.tf]} candles, ${day(visible[0].time)} to ${day(visible[visible.length - 1].time)}`,
+      provider: series.source,
+    },
   };
 }

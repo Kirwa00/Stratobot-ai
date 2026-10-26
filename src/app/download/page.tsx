@@ -60,8 +60,8 @@ export default function DownloadPage() {
           <p className="text-sm text-chalk/70 leading-relaxed">
             It&apos;s a normal .mq5 file, saved straight to your device — yours to keep, and yours
             to forward to a teammate or subscriber if you want (they&apos;ll need MetaTrader 5
-            too). Lost it? Just describe the same strategy again — rebuilding is unlimited while
-            your Pro pass is active.
+            too). Lost it? You can re-download this strategy here any time, including after you
+            adjust it.
           </p>
           {proDaysLeft !== null && (
             <p className="text-xs text-chalk/50">

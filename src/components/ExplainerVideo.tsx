@@ -3,8 +3,8 @@
 import { useEffect, useRef } from "react";
 import { EXPLAINER, clock, explainerJsonLd } from "@/lib/video";
 
-// The 67-second narrated StratoBot explainer (also on YouTube).
-// preload="none" + a poster keeps the 7.6 MB file from loading until someone
+// The 59-second narrated StratoBot explainer (a longer cut with old beta pricing is on YouTube).
+// preload="none" + a poster keeps the 4.8 MB file from loading until someone
 // presses play. On the page Google indexes it on (withSchema), it carries
 // VideoObject structured data and clickable chapters; ?t=31 seeks to 0:31,
 // which is what the structured data's key moments link to.

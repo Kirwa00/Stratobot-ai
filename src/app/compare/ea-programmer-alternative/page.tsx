@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
-import { PRICE_PER_MONTH } from "@/lib/constants";
+import { PRICE_PER_EA } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -15,7 +15,7 @@ const ROWS = [
   {
     label: "Typical cost",
     programmer: "~$150–$500+ USD for a real strategy with entries/exits/risk rules (simple mods run $30–$200); rates vary widely by platform and developer.",
-    stratobot: `${PRICE_PER_MONTH} for unlimited strategies and downloads.`,
+    stratobot: `Your first EA free, then ${PRICE_PER_EA}.`,
   },
   {
     label: "Typical timeline",

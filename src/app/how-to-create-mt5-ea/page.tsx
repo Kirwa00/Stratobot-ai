@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/Button";
 import { CtaBanner } from "@/components/CtaBanner";
 import { YouTubeExplainer } from "@/components/YouTubeExplainer";
-import { PRICE_PER_MONTH } from "@/lib/constants";
+import { PRICE_PER_EA } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -35,7 +35,7 @@ const STEPS = [
   },
   {
     title: "Unlock and download",
-    body: `Pro (${PRICE_PER_MONTH}) unlocks unlimited strategies and downloads. Download the real .mq5 file.`,
+    body: `Download the real .mq5 file. Your first EA is free; after that, each one is ${PRICE_PER_EA}.`,
   },
   {
     title: "Compile and run it",

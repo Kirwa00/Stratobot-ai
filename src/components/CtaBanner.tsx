@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { TrackedLink } from "@/components/TrackedLink";
 
 export function CtaBanner({
@@ -17,12 +16,7 @@ export function CtaBanner({
       <TrackedLink href="/app" event="primary_cta_clicked" props={{ location: "banner" }} className="!rounded-full !px-7 mt-1">
         {ctaText}
       </TrackedLink>
-      <p className="text-xs text-chalk/55">
-        Want to help shape it?{" "}
-        <Link href="/beta" className="underline underline-offset-2 hover:text-chalk">
-          Join the beta desk
-        </Link>
-      </p>
+      <p className="text-xs text-chalk/55">Your first EA is free.</p>
     </div>
   );
 }

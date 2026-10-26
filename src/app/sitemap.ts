@@ -21,7 +21,6 @@ const PATHS = [
   "/resources",
   "/vps",
   "/prop-firms",
-  "/beta",
   "/feedback",
   "/login",
   "/tools",
@@ -62,7 +61,6 @@ const PATHS = [
   "/learn/convert-mt4-ea-to-mt5",
   "/learn/mt5-ea-for-prop-firms",
   "/blog",
-  "/blog/stratobot-beta-launch",
   "/blog/why-we-dont-call-it-an-ai-trading-bot",
   "/blog/real-cost-of-hiring-an-mql5-programmer",
 ];

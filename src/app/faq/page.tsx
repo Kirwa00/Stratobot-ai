@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
-import { FREE_SIMS, PRICE_PER_MONTH } from "@/lib/constants";
+import { FREE_SIMS, PRICE_PER_EA, PRO_PER_MONTH } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
@@ -24,7 +24,7 @@ const FAQ_SCHEMA = [
   },
   {
     q: "What's the difference between the free check and paying?",
-    a: `Free gets you ${FREE_SIMS} logic-check simulations and the full block editor, no account needed. Pro (${PRICE_PER_MONTH}) unlocks unlimited simulations and lets you download the actual .mq5 file to compile in MetaTrader.`,
+    a: `Free gets you ${FREE_SIMS} logic-check simulations, the full block editor and your first EA as a downloadable .mq5 file, no account needed. After that, each EA is ${PRICE_PER_EA}, or Pro (${PRO_PER_MONTH}) gives unlimited strategies, downloads and logic checks.`,
   },
   {
     q: "What do I do with the file once I download it?",
@@ -71,9 +71,9 @@ const FAQS: { q: string; a: ReactNode }[] = [
     q: "What's the difference between the free check and paying?",
     a: (
       <>
-        Free gets you {FREE_SIMS} logic-check simulations and the full block editor, no account
-        needed. Pro ({PRICE_PER_MONTH}) unlocks
-        unlimited simulations and lets you download the actual .mq5 file to compile in MetaTrader.
+        Free gets you {FREE_SIMS} logic-check simulations, the full block editor and your first
+        EA as a downloadable .mq5 file, no account needed. After that, each EA is {PRICE_PER_EA},
+        or Pro ({PRO_PER_MONTH}) gives unlimited strategies, downloads and logic checks.
         See <Link href="/pricing" className="text-secondary hover:underline">Pricing</Link>.
       </>
     ),

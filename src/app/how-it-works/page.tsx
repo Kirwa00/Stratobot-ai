@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { CtaBanner } from "@/components/CtaBanner";
 import { ExplainerVideo } from "@/components/ExplainerVideo";
-import { PRICE_PER_MONTH } from "@/lib/constants";
+import { PRICE_PER_EA } from "@/lib/constants";
 import { EXPLAINER } from "@/lib/video";
 import { buildMetadata } from "@/lib/seo";
 
@@ -44,7 +44,7 @@ const STEPS = [
     n: "03",
     icon: "lock_open",
     title: "Unlock",
-    body: `Happy with the read-back? Pro (${PRICE_PER_MONTH}, free during the beta) unlocks unlimited checks and downloads.`,
+    body: `Happy with the read-back? Your first EA is free; after that, each one is ${PRICE_PER_EA}.`,
   },
   {
     n: "04",

@@ -9,7 +9,7 @@ const TO_EMAIL = "emmanuelkirwa8@gmail.com";
 const AREA_OPTIONS = [
   "Describing a strategy / parsing",
   "Simulation / logic check",
-  "Unlock / payment / beta code",
+  "Unlock / payment",
   "Download / install in MetaTrader",
   "Admin",
   "Something else",

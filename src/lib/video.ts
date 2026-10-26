@@ -14,11 +14,11 @@ export const EXPLAINER = {
   poster: "/videos/stratobot-explainer-poster.jpg",
   width: 1920,
   height: 1080,
-  durationSec: 67,
+  durationSec: 59,
   uploadDate: "2026-10-19T08:00:00+03:00",
   title: "How to Turn a Trading Strategy Into an MT5 Expert Advisor (No Coding)",
   description:
-    "A 1-minute narrated walkthrough of StratoBot: describe your forex strategy in plain language, review the rules it will trade, run a free logic check that explains every trade, and download a MetaTrader 5 (.mq5) Expert Advisor. KES 2,500 per month, free during the beta.",
+    "A one-minute narrated walkthrough of StratoBot: describe your forex strategy in plain language, review the rules it will trade, run a free logic check that explains every trade, and download a MetaTrader 5 (.mq5) Expert Advisor. Your first EA is free.",
   keywords: [
     "MT5 Expert Advisor",
     "create MT5 EA without coding",
@@ -37,12 +37,13 @@ export const EXPLAINER = {
     { t: 21, label: "Review the logic" },
     { t: 31, label: "Check that it fires" },
     { t: 42, label: "Download your .mq5" },
-    { t: 53, label: "Pricing" },
-    { t: 60, label: "Get started" },
+    { t: 52, label: "Get started" },
   ],
 };
 
 export const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+const isoDuration = (s: number) => `PT${s >= 60 ? `${Math.floor(s / 60)}M` : ""}${s % 60}S`;
 
 export function explainerJsonLd() {
   const page = `${SITE_URL}${EXPLAINER.pagePath}`;
@@ -55,7 +56,7 @@ export function explainerJsonLd() {
     thumbnailUrl: [`${SITE_URL}${EXPLAINER.poster}`],
     contentUrl: `${SITE_URL}${EXPLAINER.src}`,
     uploadDate: EXPLAINER.uploadDate,
-    duration: `PT1M${EXPLAINER.durationSec - 60}S`,
+    duration: isoDuration(EXPLAINER.durationSec),
     width: EXPLAINER.width,
     height: EXPLAINER.height,
     inLanguage: "en",
