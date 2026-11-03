@@ -6,6 +6,7 @@ const GROUPS: { title: string; links: { href: string; label: string }[] }[] = [
     links: [
       { href: "/convert-strategy-to-ea", label: "Convert strategy to EA" },
       { href: "/pricing", label: "Pricing" },
+      { href: "/desktop", label: "Desktop app" },
       { href: "/features", label: "Features" },
       { href: "/how-it-works", label: "How it works" },
       { href: "/faq", label: "FAQ" },

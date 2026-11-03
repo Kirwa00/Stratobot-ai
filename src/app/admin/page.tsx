@@ -44,7 +44,7 @@ export default async function AdminDashboard() {
         <Tile label="Revenue, all time" value={kes(stats.revenue.all)} />
         <Tile label="Last 30 days" value={kes(stats.revenue.d30)} />
         <Tile label="Last 7 days" value={kes(stats.revenue.d7)} />
-        <Tile label="Paid: EAs / Pro" value={`${stats.paidByKind.ea} / ${stats.paidByKind.pro}`} />
+        <Tile label="Paid: EAs / Pro / Desktop" value={`${stats.paidByKind.ea} / ${stats.paidByKind.pro} / ${stats.paidByKind.desktop}`} />
         <Tile label="Payments succeeded" value={String(stats.payments.success)} tone="buy" />
         <Tile label="Waiting on phone" value={String(stats.payments.queued + stats.payments.pending)} />
         <Tile label="Failed or cancelled" value={String(stats.payments.failed)} tone="sell" />

@@ -11,7 +11,7 @@ export async function isAdmin(): Promise<boolean> {
 export interface DashboardStats {
   revenue: { all: number; d30: number; d7: number };
   payments: Record<PaymentStatus, number>;
-  paidByKind: { ea: number; pro: number };
+  paidByKind: { ea: number; pro: number; desktop: number };
   events: { type: string; d1: number; d7: number; d30: number }[];
   realCandleChecks30: number;
   clients30: number;
@@ -25,7 +25,7 @@ export async function dashboardStats(db: Db): Promise<DashboardStats> {
        from payments`
   );
   const byStatus = await db.query<{ status: PaymentStatus; n: string }>(`select status, count(*) as n from payments group by status`);
-  const byKind = await db.query<{ kind: "ea" | "pro"; n: string }>(
+  const byKind = await db.query<{ kind: "ea" | "pro" | "desktop"; n: string }>(
     `select kind, count(*) as n from payments where status = 'success' group by kind`
   );
   const events = await db.query<{ type: string; d1: string; d7: string; d30: string }>(
@@ -44,7 +44,7 @@ export async function dashboardStats(db: Db): Promise<DashboardStats> {
   );
   const payments: Record<PaymentStatus, number> = { pending: 0, queued: 0, success: 0, failed: 0 };
   for (const r of byStatus) payments[r.status] = Number(r.n);
-  const paidByKind = { ea: 0, pro: 0 };
+  const paidByKind = { ea: 0, pro: 0, desktop: 0 };
   for (const r of byKind) paidByKind[r.kind] = Number(r.n);
   return {
     revenue: { all: Number(rev?.all ?? 0), d30: Number(rev?.d30 ?? 0), d7: Number(rev?.d7 ?? 0) },
@@ -56,12 +56,15 @@ export async function dashboardStats(db: Db): Promise<DashboardStats> {
   };
 }
 
-export async function listPayments(db: Db, opts: { status?: string; limit?: number } = {}): Promise<PaymentRow[]> {
+export type AdminPaymentRow = PaymentRow & { license_key: string | null };
+
+export async function listPayments(db: Db, opts: { status?: string; limit?: number } = {}): Promise<AdminPaymentRow[]> {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 500);
+  const select = `select p.*, l.key as license_key from payments p left join licenses l on l.payment_id = p.id`;
   if (opts.status && ["pending", "queued", "success", "failed"].includes(opts.status)) {
-    return db.query<PaymentRow>(`select * from payments where status = $1 order by created_at desc limit $2`, [opts.status, limit]);
+    return db.query<AdminPaymentRow>(`${select} where p.status = $1 order by p.created_at desc limit $2`, [opts.status, limit]);
   }
-  return db.query<PaymentRow>(`select * from payments order by created_at desc limit $1`, [limit]);
+  return db.query<AdminPaymentRow>(`${select} order by p.created_at desc limit $1`, [limit]);
 }
 
 export async function dailyRevenue(db: Db, days = 30): Promise<{ day: string; kes: number; count: number }[]> {

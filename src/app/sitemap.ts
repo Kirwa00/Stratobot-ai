@@ -10,6 +10,7 @@ const PATHS = [
   "/",
   "/app",
   "/pricing",
+  "/desktop",
   "/faq",
   "/how-it-works",
   "/features",

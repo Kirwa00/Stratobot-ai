@@ -1,0 +1,63 @@
+{
+  "name": "stratobot-desktop",
+  "productName": "StratoBot",
+  "version": "0.1.0",
+  "description": "StratoBot AI desktop app: build an EA and install it straight into MetaTrader 5.",
+  "author": "StratoBot AI",
+  "homepage": "https://www.stratobot.trade",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux dir --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "trade.stratobot.desktop",
+    "productName": "StratoBot",
+    "files": [
+      "main.js",
+      "mt5.js",
+      "licence.js",
+      "preload.js",
+      "activate.html",
+      "activate.js",
+      "offline.html",
+      "offline.js",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "StratoBot-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "StratoBot"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Finance"
+    }
+  }
+}
