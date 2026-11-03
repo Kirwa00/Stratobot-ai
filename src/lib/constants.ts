@@ -15,6 +15,11 @@ export const PRICE_PER_EA = `${kes(PRICE_PER_EA_KES)} per EA`;
 export const PRO_PER_MONTH = `${kes(PRO_MONTHLY_KES)} per month`;
 export const PRICE_EA_SHORT = kes(PRICE_PER_EA_KES);
 export const PRICE_PRO_SHORT = kes(PRO_MONTHLY_KES);
+/** Desktop app: one-off licence key, usable on this many Windows PCs. */
+export const DESKTOP_LICENSE_KES = 5000;
+export const DESKTOP_MAX_PCS = 2;
+export const PRICE_DESKTOP_SHORT = kes(DESKTOP_LICENSE_KES);
+export const DESKTOP_DOWNLOAD_URL = "https://github.com/Kirwa00/Stratobot-ai/releases/latest/download/StratoBot-Setup.exe";
 /** Payments aren't wired up yet; buy buttons say so instead of pretending. */
 export const PAYMENTS_LIVE = false;
 

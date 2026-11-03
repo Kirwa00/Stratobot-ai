@@ -34,6 +34,15 @@ const SCHEMA = [
     data jsonb
   )`,
   `create index if not exists events_at_idx on events (at desc)`,
+  `create table if not exists licenses (
+    key text primary key,
+    created_at timestamptz not null default now(),
+    payment_id text not null unique,
+    client_id text not null,
+    phone text not null,
+    machines jsonb not null default '[]'::jsonb,
+    revoked boolean not null default false
+  )`,
 ];
 
 // One connection per server process. Next bundles route handlers and pages

@@ -11,6 +11,7 @@ export const RECORDED_EVENTS = [
   "checkout_started",
   "ea_downloaded",
   "video_strategy_found",
+  "desktop_download_clicked",
 ] as const;
 
 export type RecordedEvent = (typeof RECORDED_EVENTS)[number];
@@ -26,5 +27,6 @@ export const EVENT_LABELS: Record<string, string> = {
   checkout_started: "Checkouts started",
   ea_downloaded: "EAs downloaded",
   video_strategy_found: "Strategies read from videos",
+  desktop_download_clicked: "Desktop app downloads",
   payment_succeeded: "Payments received",
 };

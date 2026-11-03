@@ -28,7 +28,8 @@ export type FunnelEvent =
   | "checkout_started"
   | "logic_check_run"
   | "free_ea_claimed"
-  | "video_strategy_found";
+  | "video_strategy_found"
+  | "desktop_download_clicked";
 
 type Props = Record<string, string | number | boolean>;
 

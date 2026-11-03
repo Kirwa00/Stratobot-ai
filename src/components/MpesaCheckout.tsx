@@ -3,14 +3,20 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/Button";
 import { clientId, trackEvent } from "@/lib/analytics";
-import { PRICE_EA_SHORT, PRICE_PRO_SHORT } from "@/lib/constants";
+import { PRICE_DESKTOP_SHORT, PRICE_EA_SHORT, PRICE_PRO_SHORT } from "@/lib/constants";
 
 // M-Pesa checkout through PayHero: the server sends the STK prompt to the
 // trader's phone, then this polls until PayHero confirms (or the prompt is
 // cancelled). Nothing unlocks until /api/pay/status reports "success", which
 // the server only sets after checking with PayHero itself.
 
-type Kind = "ea" | "pro";
+type Kind = "ea" | "pro" | "desktop";
+
+const OPTIONS: Record<Kind, { label: string; price: string; detail: string }> = {
+  ea: { label: "This EA", price: PRICE_EA_SHORT, detail: "One-off. Yours to keep and re-download as you adjust it." },
+  pro: { label: "Pro, 30 days", price: PRICE_PRO_SHORT, detail: "Unlimited EAs and logic checks. Doesn't renew by itself." },
+  desktop: { label: "Desktop licence", price: PRICE_DESKTOP_SHORT, detail: "One-off licence key for the StratoBot Windows app." },
+};
 type Phase = "form" | "waiting" | "failed" | "timeout";
 
 const POLL_MS = 3000;
@@ -19,15 +25,17 @@ const GIVE_UP_MS = 150_000;
 export function MpesaCheckout({
   strategyId,
   strategyName,
+  kinds = ["ea", "pro"],
   onPaid,
 }: {
-  strategyId: string;
-  strategyName: string;
-  onPaid: (kind: Kind) => void;
+  strategyId?: string;
+  strategyName?: string;
+  kinds?: Kind[];
+  onPaid: (kind: Kind, licenseKey?: string) => void;
 }) {
   const phoneId = useId();
   const [live, setLive] = useState<boolean | null>(null);
-  const [kind, setKind] = useState<Kind>("ea");
+  const [kind, setKind] = useState<Kind>(kinds[0]);
   const [phone, setPhone] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +57,10 @@ export function MpesaCheckout({
     if (!p) return;
     try {
       const res = await fetch(`/api/pay/status?id=${encodeURIComponent(p.id)}&client=${encodeURIComponent(clientId())}`);
-      const s = (await res.json()) as { status?: string; kind?: Kind };
+      const s = (await res.json()) as { status?: string; kind?: Kind; licenseKey?: string | null };
       if (s.status === "success") {
         poll.current = null;
-        onPaid(s.kind ?? kind);
+        onPaid(s.kind ?? kind, s.licenseKey ?? undefined);
         return;
       }
       if (s.status === "failed") {
@@ -104,7 +112,7 @@ export function MpesaCheckout({
         <p className="font-semibold text-chalk">Check your phone</p>
         <p className="text-sm text-chalk/75 leading-relaxed">
           {phase === "waiting"
-            ? `Enter your M-Pesa PIN to pay ${kind === "ea" ? PRICE_EA_SHORT : PRICE_PRO_SHORT}. This screen updates by itself.`
+            ? `Enter your M-Pesa PIN to pay ${OPTIONS[kind].price}. This screen updates by itself.`
             : "We haven't heard back from M-Pesa yet. If you paid, it will show up; keep this page open or check again."}
         </p>
         {phase === "timeout" && (
@@ -126,14 +134,10 @@ export function MpesaCheckout({
 
   return (
     <div className="flex flex-col gap-3">
+      {kinds.length > 1 && (
       <fieldset className="grid grid-cols-2 gap-2">
         <legend className="sr-only">What to buy</legend>
-        {(
-          [
-            ["ea", "This EA", PRICE_EA_SHORT, "One-off. Yours to keep and re-download as you adjust it."],
-            ["pro", "Pro, 30 days", PRICE_PRO_SHORT, "Unlimited EAs and logic checks. Doesn't renew by itself."],
-          ] as const
-        ).map(([k, label, price, detail]) => (
+        {kinds.map((k) => [k, OPTIONS[k].label, OPTIONS[k].price, OPTIONS[k].detail] as const).map(([k, label, price, detail]) => (
           <label
             key={k}
             className={`rounded-lg border px-3 py-3 cursor-pointer has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-secondary ${kind === k ? "border-signal bg-slate" : "border-outline"}`}
@@ -145,6 +149,7 @@ export function MpesaCheckout({
           </label>
         ))}
       </fieldset>
+      )}
       {!live ? (
         <>
           <div className="rounded-lg border border-caution/50 bg-slate px-4 py-3.5">
@@ -184,7 +189,7 @@ export function MpesaCheckout({
             </p>
           )}
           <Button className="w-full" onClick={pay} disabled={busy || phone.replace(/\D/g, "").length < 9}>
-            {busy ? "Sending the M-Pesa prompt…" : `Pay ${kind === "ea" ? PRICE_EA_SHORT : PRICE_PRO_SHORT} with M-Pesa`}
+            {busy ? "Sending the M-Pesa prompt…" : `Pay ${OPTIONS[kind].price} with M-Pesa`}
           </Button>
           <p className="text-xs text-chalk/50 text-center">You&apos;ll get an M-Pesa prompt on this phone. Payments by PayHero.</p>
         </>

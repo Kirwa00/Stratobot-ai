@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { PRICE_PER_EA_KES, PRO_MONTHLY_KES } from "../constants";
+import { DESKTOP_LICENSE_KES, PRICE_PER_EA_KES, PRO_MONTHLY_KES } from "../constants";
 import { getDb, type Db } from "./db";
+import { issueLicense } from "./licenses";
 import {
   normalizeKenyanPhone,
   payheroConfig,
@@ -16,7 +17,7 @@ import {
 // payment to success; the callback just triggers that lookup, so a forged or
 // replayed callback can't unlock anything.
 
-export type PaymentKind = "ea" | "pro";
+export type PaymentKind = "ea" | "pro" | "desktop";
 export type PaymentStatus = "pending" | "queued" | "success" | "failed";
 
 export interface PaymentRow {
@@ -36,7 +37,7 @@ export interface PaymentRow {
   result_desc: string | null;
 }
 
-export const PRICES: Record<PaymentKind, number> = { ea: PRICE_PER_EA_KES, pro: PRO_MONTHLY_KES };
+export const PRICES: Record<PaymentKind, number> = { ea: PRICE_PER_EA_KES, pro: PRO_MONTHLY_KES, desktop: DESKTOP_LICENSE_KES };
 
 /** Stop well short of PayHero's block (10 failed prompts to one number → 24h block). */
 const MAX_FAILED_PER_PHONE_PER_HOUR = 4;
@@ -52,7 +53,7 @@ export async function startPayment(
   const db = deps.db === undefined ? await getDb() : deps.db;
   if (!db) return { ok: false, error: "Payments need the database, which isn't connected.", status: 503 };
 
-  const kind = input.kind === "pro" ? "pro" : input.kind === "ea" ? "ea" : null;
+  const kind = input.kind === "pro" || input.kind === "ea" || input.kind === "desktop" ? input.kind : null;
   if (!kind) return { ok: false, error: "Unknown purchase.", status: 400 };
   const phone = typeof input.phone === "string" ? normalizeKenyanPhone(input.phone) : null;
   if (!phone) return { ok: false, error: "Enter a Safaricom or Airtel number, like 0712 345 678.", status: 400 };
@@ -113,6 +114,7 @@ export async function refreshPayment(id: string, deps: { db?: Db | null; config?
         [id, receipt]
       );
       if (updated) {
+        if (updated.kind === "desktop") await issueLicense(db, updated);
         await db.query(`insert into events (type, client_id, data) values ('payment_succeeded', $1, $2)`, [
           row.client_id,
           JSON.stringify({ kind: row.kind, amount: row.amount }),

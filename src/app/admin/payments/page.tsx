@@ -78,7 +78,9 @@ export default async function AdminPayments({ searchParams }: { searchParams: Pr
                     {p.result_desc && p.status === "failed" && <p className="text-xs text-chalk/50 mt-1">{p.result_desc}</p>}
                   </td>
                   <td className="px-3 py-2 text-right mono-num">{p.amount.toLocaleString("en-KE")}</td>
-                  <td className="px-3 py-2 text-chalk/85">{p.kind === "pro" ? "Pro, 30 days" : p.strategy_name || "One EA"}</td>
+                  <td className="px-3 py-2 text-chalk/85">{p.kind === "pro" ? "Pro, 30 days" : p.kind === "desktop" ? "Desktop licence" : p.strategy_name || "One EA"}
+                    {p.license_key && <p className="font-mono text-xs text-chalk/60 mt-1 select-all">{p.license_key}</p>}
+                  </td>
                   <td className="px-3 py-2 mono-num">{p.phone.replace(/^254/, "0")}</td>
                   <td className="px-3 py-2 mono-num">{p.receipt ?? "—"}</td>
                   <td className="px-3 py-2 mono-num text-xs text-chalk/60">{p.id}</td>
